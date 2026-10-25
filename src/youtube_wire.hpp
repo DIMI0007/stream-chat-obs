@@ -34,7 +34,7 @@ inline QByteArray request(const QString& chatId,const QString& pageToken){
     for(const auto& part:{QByteArray("id"),QByteArray("snippet"),QByteArray("authorDetails")})payload+=stringField(100,part);
     return frame(payload);
 }
-struct Batch {QVector<ChatMessage> messages;QString nextPage;bool ended=false;};
+struct Batch {QVector<ChatMessage> messages;QVector<QString> removedIds;QString nextPage;bool ended=false;};
 inline bool decode(const QByteArray& payload,Batch& batch){
     Reader reader(payload);Field field;
     while(reader.next(field)){
@@ -42,7 +42,7 @@ inline bool decode(const QByteArray& payload,Batch& batch){
         if(field.number==2&&field.wire==2&&!field.bytes.isEmpty())batch.ended=true;
         if(field.number!=1007||field.wire!=2)continue;
         if(batch.messages.size()>=2000)return false;
-        ChatMessage message;message.platform="YouTube";Reader item(field.bytes);Field part;
+        ChatMessage message;message.platform="YouTube";quint64 type=0;Reader item(field.bytes);Field part;
         while(item.next(part)){
             if(part.number==101&&part.wire==2)message.id=QString::fromUtf8(part.bytes).left(256);
             if(part.number==3&&part.wire==2){Reader author(part.bytes);Field property;while(author.next(property)){
@@ -51,11 +51,12 @@ inline bool decode(const QByteArray& payload,Batch& batch){
             }if(!author.valid())return false;}
             if(part.number==2&&part.wire==2){Reader snippet(part.bytes);Field property;while(snippet.next(property)){
                 if(property.number==16&&property.wire==2)message.text=QString::fromUtf8(property.bytes).left(5000);
-                if(property.number==1&&property.wire==0&&property.integer==4)batch.ended=true;
+                if(property.number==1&&property.wire==0){type=property.integer;if(type==4)batch.ended=true;}
             }if(!snippet.valid())return false;}
         }
         if(!item.valid())return false;
-        if(!message.id.isEmpty()&&!message.text.isEmpty())batch.messages.append(message);
+        if(type==2&&!message.id.isEmpty())batch.removedIds.append(message.id);
+        else if(!message.id.isEmpty()&&!message.text.isEmpty())batch.messages.append(message);
     }
     return reader.valid();
 }

@@ -40,6 +40,8 @@ int main(int argc,char** argv){
 
     Batch extended;require(decode(stringField(50,"ignored")+payload,extended)&&extended.messages.size()==1,"Unknown protobuf field was not skipped safely");
     Batch ended;require(decode(stringField(2,"offline"),ended)&&ended.ended,"Offline marker was not recognized");
+    const QByteArray tombstone=stringField(1007,stringField(101,"deleted-id")+stringField(2,varint(8*1+0)+varint(2)));
+    Batch removed;require(decode(tombstone,removed)&&removed.messages.isEmpty()&&removed.removedIds.size()==1&&removed.removedIds.first()=="deleted-id","Tombstone was not converted into a removal");
     std::cout<<"YouTube StreamList request, response and bounded gRPC framing passed\n";
 }
 

@@ -21,7 +21,7 @@ public:
     void signIn();void signOut();void discover();void selectChat(const QString& id);void send(const QString& text);
     bool ready()const{return ready_;}QString status()const{return status_;}
 Q_SIGNALS:
-    void changed();void message(const sc::ChatMessage& message);void broadcasts(const QJsonArray& choices);
+    void changed();void message(const sc::ChatMessage& message);void removeMessage(const QString& id);void broadcasts(const QJsonArray& choices);
     void sent(bool confirmed,const QString& reason);
 private:
     using Reply=std::function<void(int,const QJsonObject&)>;

@@ -130,6 +130,7 @@ void YouTubeChat::receive(){
             youtube_wire::Batch batch;if(!youtube_wire::decode(payload,batch)){stopStream();setStatus("YouTube: некорректный ответ потока");Q_EMIT changed();return;}
             if(!batch.nextPage.isEmpty())pageToken_=batch.nextPage;
             if(!ready_){ready_=true;attempts_=0;authRetries_=0;setStatus("YouTube: чат подключён");Q_EMIT changed();}
+            for(const auto& id:batch.removedIds)Q_EMIT removeMessage(id);
             for(const auto& message:batch.messages){if(seen_.contains(message.id))continue;seen_.insert(message.id);seenOrder_.enqueue(message.id);while(seenOrder_.size()>1000)seen_.remove(seenOrder_.dequeue());Q_EMIT this->message(message);}
             if(batch.ended){stopStream();chatId_.clear();setStatus("YouTube: эфир завершён");Q_EMIT changed();return;}
         }
