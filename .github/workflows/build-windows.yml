@@ -18,7 +18,7 @@ jobs:
         run: cmake --preset windows-ci-x64
       - name: Build Windows x64 DLL
         run: cmake --build --preset windows-x64 --config RelWithDebInfo --parallel
-      - name: Test protected account storage
+      - name: Test protected storage, OAuth and YouTube stream framing
         run: ctest --test-dir build_x64 -C RelWithDebInfo --output-on-failure
       - name: Stage plugin package
         shell: pwsh
@@ -29,7 +29,7 @@ jobs:
           if (!(Test-Path package/stream-chat-obs/bin/64bit/Qt6WebSockets.dll)) { throw 'WebSocket runtime missing' }
           if (!(Test-Path package/stream-chat-obs/data/qt-plugins/tls/qschannelbackend.dll)) { throw 'TLS backend missing' }
           $spec=Get-Content buildspec.json -Raw|ConvertFrom-Json
-          [ordered]@{product='Stream Chat OBS';version=$spec.version;commit=$env:GITHUB_SHA;packageType='unsigned-alpha';platforms=@('Twitch');liveAccountValidation='pending'}|ConvertTo-Json|Set-Content package/BUILD_INFO.json -Encoding utf8
+          [ordered]@{product='Stream Chat OBS';version=$spec.version;commit=$env:GITHUB_SHA;obs='33.0.0';qt='6.11.1';packageType='unsigned-alpha';platforms=@('Twitch','YouTube');liveAccountValidation='pending'}|ConvertTo-Json|Set-Content package/BUILD_INFO.json -Encoding utf8
       - uses: actions/upload-artifact@v4
         with:
           name: StreamChatOBS-OBS33-Windows-x64

@@ -9,7 +9,7 @@ namespace sc {
 namespace {
 const QString clientId="6ivhu6zdlv5ojd0h8w4s037uc7rmgh"; // Public desktop client, not a secret.
 const QString scopes="user:read:chat user:write:chat";
-QByteArray form(std::initializer_list<std::pair<QString,QString>> fields){QUrlQuery q;for(const auto& field:fields)q.addQueryItem(field.first,field.second);return q.query(QUrl::FullyEncoded).toUtf8();}
+QByteArray form(std::initializer_list<std::pair<QString,QString>> fields){QUrlQuery q;for(const auto& field:fields)q.addQueryItem(field.first,field.second);return q.query(QUrl::FullyEncoded).toUtf8().replace("+","%2B");}
 }
 TwitchChat::TwitchChat(QString path,QObject* parent):QObject(parent),vault_(std::move(path)) {
     bool ok=false;tokens_=vault_.load(&ok);if(!ok)status_="Twitch: не удалось прочитать защищённые настройки";
@@ -24,7 +24,7 @@ TwitchChat::~TwitchChat(){stopNetwork();}
 void TwitchChat::setStatus(const QString& value){if(status_!=value){status_=value;Q_EMIT changed();}}
 void TwitchChat::request(const QUrl& url,const QByteArray& method,const QByteArray& body,const QByteArray& type,bool auth,Reply done){
     QNetworkRequest req(url);req.setTransferTimeout(15000);req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);
-    req.setHeader(QNetworkRequest::UserAgentHeader,"StreamChatOBS/0.2");
+    req.setHeader(QNetworkRequest::UserAgentHeader,"StreamChatOBS/0.3");
     if(!type.isEmpty())req.setHeader(QNetworkRequest::ContentTypeHeader,type);
     if(auth){const QString scheme=url.host()=="id.twitch.tv"&&url.path()=="/oauth2/validate"?"OAuth ":"Bearer ";req.setRawHeader("Authorization",(scheme+tokens_.value("access_token").toString()).toUtf8());req.setRawHeader("Client-Id",clientId.toUtf8());}
     auto* r=method=="GET"?http_.get(req):http_.sendCustomRequest(req,method,body);replies_.insert(r);

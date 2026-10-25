@@ -20,7 +20,16 @@ find_package(obs-frontend-api REQUIRED)
 find_package(Qt6 6.11.1 EXACT REQUIRED COMPONENTS Core Gui Widgets Network)
 include(cmake/windows/chat-network.cmake)
 
-add_library(${CMAKE_PROJECT_NAME} MODULE src/plugin-main.cpp src/twitch_chat.cpp src/twitch_chat.hpp)
+add_library(${CMAKE_PROJECT_NAME} MODULE
+  src/plugin-main.cpp
+  src/chat_message.hpp
+  src/oauth_loopback.hpp
+  src/secure_store.hpp
+  src/twitch_chat.cpp
+  src/twitch_chat.hpp
+  src/youtube_chat.cpp
+  src/youtube_chat.hpp
+  src/youtube_wire.hpp)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::libobs OBS::obs-frontend-api Qt6::Core Qt6::Widgets Qt6::Network Qt6::WebSockets crypt32)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE STREAM_CHAT_VERSION="${PROJECT_VERSION}")
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
@@ -37,5 +46,17 @@ target_link_libraries(stream-chat-vault-tests PRIVATE Qt6::Core crypt32)
 target_compile_definitions(stream-chat-vault-tests PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
 add_test(NAME encrypted-local-account-storage COMMAND stream-chat-vault-tests)
 set_tests_properties(encrypted-local-account-storage PROPERTIES
+  ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
+
+add_executable(stream-chat-youtube-wire-tests tests/test_youtube_wire.cpp)
+target_link_libraries(stream-chat-youtube-wire-tests PRIVATE Qt6::Core)
+add_test(NAME youtube-stream-wire-format COMMAND stream-chat-youtube-wire-tests)
+set_tests_properties(youtube-stream-wire-format PROPERTIES
+  ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
+
+add_executable(stream-chat-oauth-tests tests/test_oauth_loopback.cpp src/oauth_loopback.hpp)
+target_link_libraries(stream-chat-oauth-tests PRIVATE Qt6::Core Qt6::Network)
+add_test(NAME secure-loopback-oauth COMMAND stream-chat-oauth-tests)
+set_tests_properties(secure-loopback-oauth PROPERTIES
   ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
 

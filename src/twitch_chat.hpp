@@ -1,5 +1,6 @@
 #pragma once
 #include "secure_store.hpp"
+#include "chat_message.hpp"
 #include <QObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -12,7 +13,6 @@
 #include <functional>
 
 namespace sc {
-struct ChatMessage {QString platform,id,authorId,author,text;};
 class TwitchChat final : public QObject {
     Q_OBJECT
 public:
