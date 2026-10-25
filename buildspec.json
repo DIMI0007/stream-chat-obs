@@ -2,10 +2,10 @@
   "dependencies": {
     "obs-studio": {
       "version": "33.0.0",
-      "baseUrl": "https://github.com/obsproject/obs-studio/releases/download/33.0.0",
+      "baseUrl": "https://github.com/obsproject/obs-studio/archive/refs/tags",
       "label": "OBS sources",
       "hashes": {
-        "windows-x64": "c1ae3c98c1bb70ebdced33e894a526fcbbbda9bfd95806970a3fc31f74b08f6c"
+        "windows-x64": "bdab14146289f39be6c12d5165812ba5b37b5231f857cb84aa5e4bafeaaa8686"
       }
     },
     "prebuilt": {
