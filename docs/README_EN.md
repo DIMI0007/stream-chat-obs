@@ -15,9 +15,9 @@ A native OBS dock for reading chat and sending messages to your own channels. It
 | --- | --- |
 | OBS dock | The initial scaffold built successfully in Windows CI. |
 | Twitch registration | Public client registration verified in the developer console. |
-| Twitch sign-in and chat | Device-code sign-in, EventSub messages/moderation and explicit message sending implemented. Build verification is underway; a live account has not been validated. |
+| Twitch sign-in and chat | Device-code sign-in, EventSub messages/moderation and explicit message sending implemented. Build verification passed in CI; a live account has not been validated. |
 | YouTube | Desktop OAuth client registered. Chat adapter not connected yet. |
-| Token storage | Windows DPAPI implemented with a dedicated CI test. |
+| Token storage | Windows DPAPI round-trip, corrupt-file handling and local sign-out passed CI. |
 | Code signing | Artifacts are unsigned. Windows Smart App Control acceptance is not guaranteed. |
 
 This is an **alpha build**, not a completed public release. Passing CI does not prove real chat connectivity.
@@ -59,3 +59,4 @@ Include the version, source commit from `BUILD_INFO.json` and the safe error mes
 [Documentation standard (Russian)](DOCUMENTATION_STANDARD_RU.md)
 
 Developed by [OTMOPOZOK](https://www.youtube.com/channel/UCTAKYR3T2Ud8zZgNShgQfyw/).
+
