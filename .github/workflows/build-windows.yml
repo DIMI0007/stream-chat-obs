@@ -18,14 +18,21 @@ jobs:
         run: cmake --preset windows-ci-x64
       - name: Build Windows x64 DLL
         run: cmake --build --preset windows-x64 --config RelWithDebInfo --parallel
+      - name: Test protected account storage
+        run: ctest --test-dir build_x64 -C RelWithDebInfo --output-on-failure
       - name: Stage plugin package
         shell: pwsh
         run: |
           cmake --install build_x64 --config RelWithDebInfo --prefix package
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (!(Test-Path package/stream-chat-obs/bin/64bit/stream-chat-obs.dll)) { throw 'Plugin DLL missing' }
+          if (!(Test-Path package/stream-chat-obs/bin/64bit/Qt6WebSockets.dll)) { throw 'WebSocket runtime missing' }
+          if (!(Test-Path package/stream-chat-obs/data/qt-plugins/tls/qschannelbackend.dll)) { throw 'TLS backend missing' }
+          $spec=Get-Content buildspec.json -Raw|ConvertFrom-Json
+          [ordered]@{product='Stream Chat OBS';version=$spec.version;commit=$env:GITHUB_SHA;packageType='unsigned-alpha';platforms=@('Twitch');liveAccountValidation='pending'}|ConvertTo-Json|Set-Content package/BUILD_INFO.json -Encoding utf8
       - uses: actions/upload-artifact@v4
         with:
           name: StreamChatOBS-OBS33-Windows-x64
           path: package/
           if-no-files-found: error
+
