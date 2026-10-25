@@ -1,0 +1,39 @@
+{
+  "dependencies": {
+    "obs-studio": {
+      "version": "33.0.0",
+      "baseUrl": "https://github.com/obsproject/obs-studio/releases/download/33.0.0",
+      "label": "OBS sources",
+      "hashes": {
+        "windows-x64": "c1ae3c98c1bb70ebdced33e894a526fcbbbda9bfd95806970a3fc31f74b08f6c"
+      }
+    },
+    "prebuilt": {
+      "version": "2026-10-23",
+      "baseUrl": "https://github.com/obsproject/obs-deps/releases/download",
+      "label": "Pre-Built obs-deps",
+      "hashes": {
+        "windows-x64": "7508972a867a0ef68c26cd8bdba61fd999edd0a92fa9eb9585774de9bf51bfbe"
+      }
+    },
+    "qt6": {
+      "version": "2026-10-23",
+      "baseUrl": "https://github.com/obsproject/obs-deps/releases/download",
+      "label": "Pre-Built Qt6",
+      "hashes": {
+        "windows-x64": "78cd7a138464bb6edcdd3b85fcd63a5a7c69e369629963f3bc395bab74fb3f47"
+      }
+    }
+  },
+  "platformConfig": {
+    "macos": {
+      "bundleId": "com.example.streamchatobs"
+    }
+  },
+  "name": "stream-chat-obs",
+  "displayName": "Stream Chat OBS",
+  "version": "0.1.0",
+  "author": "Stream Chat OBS Contributors",
+  "website": "https://github.com",
+  "email": "stream-chat-obs@example.invalid"
+}
