@@ -19,7 +19,7 @@ public:
     ~YouTubeChat()override;
     void setVisible(bool active);
     void signIn();void signOut();void discover();void selectChat(const QString& id);void send(const QString& text);
-    bool ready()const{return ready_;}QString status()const{return status_;}
+    bool ready()const{return ready_;}bool signedIn()const{return !tokens_.value("access_token").toString().isEmpty();}QString status()const{return status_;}
 Q_SIGNALS:
     void changed();void message(const sc::ChatMessage& message);void removeMessage(const QString& id);void broadcasts(const QJsonArray& choices);
     void sent(bool confirmed,const QString& reason);
