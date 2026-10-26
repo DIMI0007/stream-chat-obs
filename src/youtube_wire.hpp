@@ -51,6 +51,7 @@ inline bool decode(const QByteArray& payload,Batch& batch){
             }if(!author.valid())return false;}
             if(part.number==2&&part.wire==2){Reader snippet(part.bytes);Field property;while(snippet.next(property)){
                 if(property.number==16&&property.wire==2)message.text=QString::fromUtf8(property.bytes).left(5000);
+                if(property.number==4&&property.wire==2)message.sentAt=parsePlatformTime(QString::fromUtf8(property.bytes));
                 if(property.number==1&&property.wire==0){type=property.integer;if(type==4)batch.ended=true;}
             }if(!snippet.valid())return false;}
         }
@@ -79,4 +80,3 @@ public:
 private:QByteArray buffer_;
 };
 }
-

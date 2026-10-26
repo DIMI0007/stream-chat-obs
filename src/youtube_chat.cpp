@@ -119,7 +119,7 @@ void YouTubeChat::refresh(){
         refreshing_=false;
         if(http==200&&saveTokens(data)){if(visible_){if(chatId_.isEmpty()){if(streamActive_)search_.start();}else openStream();}return;}
         if(http==400||http==401){stopNetwork();tokens_={};vault_.save({});setStatus("YouTube: разрешение истекло, войдите снова");}
-        else {setStatus("YouTube: не удалось обновить вход, повторите подключение");}Q_EMIT changed();
+        else {setStatus("YouTube: повторное подключение");retry();}Q_EMIT changed();
     });
 }
 void YouTubeChat::signOut(){stopNetwork();tokens_={};chatId_.clear();pageToken_.clear();videoId_.clear();chatVideos_.clear();viewerCount_=-1;viewerUpdated_={};Q_EMIT broadcasts({});setStatus(vault_.save({})?"YouTube: отключён":"YouTube: не удалось удалить сохранённый токен");Q_EMIT changed();}
@@ -148,6 +148,7 @@ void YouTubeChat::discover(){
 void YouTubeChat::selectChat(const QString& id){if(id.isEmpty()||id.size()>512||!visible_)return;search_.stop();stopStream();chatId_=id;videoId_=chatVideos_.value(id);viewerCount_=-1;viewerUpdated_={};pageToken_.clear();attempts_=0;authRetries_=0;seen_.clear();seenOrder_.clear();openStream();}
 void YouTubeChat::openStream(){
     if(!visible_||chatId_.isEmpty()||refreshing_)return;
+    if(tokens_.value("expires_at").toDouble()<=double(QDateTime::currentSecsSinceEpoch()+60)){refresh();return;}
     stopStream();retry_.stop();setStatus("YouTube: подключаем поток чата…");
     if(streamActive_&&!videoId_.isEmpty()&&!viewerTimer_.isActive()){
         viewerTimer_.setInterval(60000);viewerTimer_.start();pollViewers();
@@ -165,6 +166,7 @@ void YouTubeChat::openStream(){
         const QByteArray grpc=reply->rawHeader("grpc-status");stream_=nullptr;reply->deleteLater();ready_=false;Q_EMIT changed();
         if(http==401||grpc=="16"){if(authRetries_++<1){refresh();return;}setStatus("YouTube: требуется повторный вход");return;}
         if(http==403||grpc=="7"||grpc=="8"||http==429){setStatus("YouTube: доступ или квота API ограничены; автоматические повторы остановлены");return;}
+        if(http>=400&&http<500&&http!=408){setStatus(QString("YouTube: ошибка чата (HTTP %1)").arg(http));return;}
         retry();
     });
     const QPointer<QNetworkReply> expected=reply;
@@ -207,8 +209,8 @@ void YouTubeChat::pollViewers(){
 }
 void YouTubeChat::retry(){
     if(!visible_||retry_.isActive())return;
-    if(++attempts_>8){setStatus("YouTube: соединение не восстановлено. Повторим при следующем эфире.");return;}
-    setStatus("YouTube: восстанавливаем соединение…");retry_.start(std::min(120000,1000*(1<<std::min(attempts_,6))));
+    attempts_=std::min(attempts_+1,6);
+    setStatus("YouTube: подключение");retry_.start(std::min(120000,1000*(1<<attempts_)));
 }
 void YouTubeChat::send(const QString& text){
     if(!ready_||text.trimmed().isEmpty()||text.size()>200){Q_EMIT sent(false,"YouTube: чат не готов или текст длиннее 200 символов");return;}

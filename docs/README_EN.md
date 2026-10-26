@@ -4,13 +4,13 @@
 
 ![Stream Chat English interface — isolated preview](screenshots/chat-en.png)
 
-*Version 0.3.8 UI preview from an isolated test host. It shows the interface, not a connection to live accounts.* [Russian interface](screenshots/chat-ru.png).
+*Version 0.3.9 UI preview from an isolated test host. It shows the interface, not a connection to live accounts.* [Russian interface](screenshots/chat-ru.png).
 
 ## Verified status
 
 - The plugin loads in OBS 33 on Windows x64. Twitch sign-in and real incoming messages were checked in OBS.
 - Google browser sign-in was confirmed. YouTube chat reads and sends during a real broadcast still need validation.
-- Version 0.3.8 builds and passes automated tests. Language selection, viewer counts, and automatic stream discovery are implemented and await live broadcast validation.
+- Version 0.3.9 builds and passes automated tests. Language selection, viewer counts, and automatic stream discovery are implemented and await live broadcast validation.
 
 ## Features
 
@@ -19,7 +19,7 @@
 - Automatic YouTube chat discovery after streaming starts.
 - In-stream message and viewer counts. Twitch viewers refresh about every 30 seconds; YouTube about every minute when the API supplies a count.
 - Send to selected connected channels. Both platforms are selected by default.
-- The ⚙ button in the top right opens the **Русский / English** language setting.
+- The ⚙ button in the top right opens the **Авто / Русский / English** language setting.
 
 ## Install
 

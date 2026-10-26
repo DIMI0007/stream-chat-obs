@@ -15,6 +15,9 @@ int main(int argc,char** argv){
     require(batch.messages.size()==1,"Expected one chat message");
     const auto message=batch.messages.first();
     require(message.platform=="YouTube"&&message.id=="m1"&&message.author=="Ada"&&message.text=="hello","Decoded chat fields differ");
+    const auto datedSnippet=stringField(4,"2026-10-26T12:34:56.123456789Z")+stringField(16,"hello");
+    Batch dated;require(decode(stringField(1007,stringField(101,"dated-id")+stringField(2,datedSnippet)),dated),"Published timestamp was rejected");
+    require(dated.messages.size()==1&&dated.messages.first().sentAt.isValid()&&dated.messages.first().sentAt.toUTC().toString("HH:mm:ss.zzz")=="12:34:56.123","Published timestamp was not decoded");
 
     const QByteArray requestBody=request("chat-123","page-456");
     require(requestBody.size()>5&&quint8(requestBody[0])==0,"Request is not an uncompressed gRPC frame");
@@ -45,4 +48,3 @@ int main(int argc,char** argv){
     Batch removed;require(decode(tombstone,removed)&&removed.messages.isEmpty()&&removed.removedIds.size()==1&&removed.removedIds.first()=="deleted-id","Tombstone was not converted into a removal");
     std::cout<<"YouTube StreamList request, response and bounded gRPC framing passed\n";
 }
-
