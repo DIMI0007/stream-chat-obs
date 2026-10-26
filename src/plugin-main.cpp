@@ -349,7 +349,7 @@ private:
             choice->setProperty("localeCode",code);choices->push_back(choice);line->addWidget(choice,1);
         }
         layout->addLayout(line);
-        auto* scaleCard=new QWidget(page);scaleCard->setObjectName("LanguageCard");outer->addWidget(scaleCard);
+        auto* scaleCard=new QWidget(page);scaleCard->setObjectName("LanguageCard");scaleCard->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Maximum);outer->addWidget(scaleCard);
         auto* scaleLayout=new QVBoxLayout(scaleCard);scaleLayout->setContentsMargins(8,6,8,8);scaleLayout->setSpacing(4);
         auto* scaleTitle=new QLabel(english_?"Chat text size":"Размер текста чата");scaleLayout->addWidget(scaleTitle);
         auto* scaleRow=new QHBoxLayout;auto* slider=new QSlider(Qt::Horizontal);slider->setRange(80,140);slider->setSingleStep(5);slider->setPageStep(10);slider->setValue(textScale_);scaleRow->addWidget(slider,1);
