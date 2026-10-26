@@ -63,8 +63,11 @@ set_tests_properties(secure-loopback-oauth PROPERTIES
   ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
 
 add_executable(stream-chat-ui-preview tests/ui_preview.cpp src/twitch_chat.cpp src/youtube_chat.cpp src/oauth_loopback.hpp)
+get_target_property(_obs_includes OBS::libobs INTERFACE_INCLUDE_DIRECTORIES)
+get_target_property(_frontend_includes OBS::obs-frontend-api INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(stream-chat-ui-preview PRIVATE ${_obs_includes} ${_frontend_includes})
 target_compile_definitions(stream-chat-ui-preview PRIVATE STREAM_CHAT_PREVIEW STREAM_CHAT_VERSION="${PROJECT_VERSION}" WIN32_LEAN_AND_MEAN NOMINMAX)
-target_link_libraries(stream-chat-ui-preview PRIVATE OBS::libobs OBS::obs-frontend-api Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets crypt32)
+target_link_libraries(stream-chat-ui-preview PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets crypt32)
 if(MSVC)
   target_compile_options(stream-chat-ui-preview PRIVATE /W4 /utf-8 /permissive-)
 endif()

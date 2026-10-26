@@ -16,6 +16,9 @@ namespace sc {
 namespace {
 const QString googleClient="398266429510-m38h7aklj8s3r123fqmc64h33cdbmh3j.apps.googleusercontent.com";
 QString googleSecret(){
+#ifdef STREAM_CHAT_PREVIEW
+    return {};
+#else
     char* raw=obs_module_file("google-oauth.json");
     if(!raw)return {};
     QFile file(QString::fromUtf8(raw));bfree(raw);
@@ -23,6 +26,7 @@ QString googleSecret(){
     const auto config=QJsonDocument::fromJson(file.readAll()).object();
     if(config.value("client_id").toString()!=googleClient)return {};
     return config.value("client_secret").toString();
+#endif
 }
 QByteArray googleForm(std::initializer_list<std::pair<QString,QString>> fields){QUrlQuery q;for(const auto& field:fields)q.addQueryItem(field.first,field.second);return q.query(QUrl::FullyEncoded).toUtf8().replace("+","%2B");}
 QString randomVerifier(){QString value;for(int i=0;i<4;++i)value+=QString::number(QRandomGenerator::system()->generate64(),16).rightJustified(16,'0');return value;}
@@ -214,4 +218,3 @@ void YouTubeChat::send(const QString& text){
     });
 }
 }
-

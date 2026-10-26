@@ -43,8 +43,10 @@
 #include <algorithm>
 #include <thread>
 
+#ifndef STREAM_CHAT_PREVIEW
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("stream-chat-obs", "en-US")
+#endif
 namespace {
 constexpr const char* DockId="stream-chat-obs.chat";
 const char* ChatStyle=R"(
@@ -232,7 +234,7 @@ public:
         auto* targets=new QHBoxLayout;targets->setSpacing(6);recipientHint_=new QLabel("Куда отправлять");recipientHint_->setObjectName("Hint");targets->addWidget(recipientHint_);target_=new PlatformToggle("Twitch");target_->setChecked(true);targets->addWidget(target_);twitchCount_=new QLabel;twitchCount_->setObjectName("Hint");twitchCount_->setToolTip("Сообщения Twitch за этот запуск OBS");targets->addWidget(twitchCount_);youtubeTarget_=new PlatformToggle("YouTube");youtubeTarget_->setChecked(true);targets->addWidget(youtubeTarget_);youtubeCount_=new QLabel;youtubeCount_->setObjectName("Hint");youtubeCount_->setToolTip("Сообщения YouTube за этот запуск OBS");targets->addWidget(youtubeCount_);targets->addStretch();chatLayout->addLayout(targets);layout->addWidget(chatCard,1);
         auto* composerCard=card();auto* composerLayout=new QVBoxLayout(composerCard);composerLayout->setContentsMargins(8,7,8,8);composerLayout->setSpacing(5);auto* composer=new QHBoxLayout;input_=new QLineEdit;input_->setMaxLength(500);input_->setPlaceholderText("Сообщение на стриминговые сервисы");send_=new QPushButton("Отправить");send_->setObjectName("Primary");composer->addWidget(input_,1);composer->addWidget(send_);composerLayout->addLayout(composer);delivery_=new QLabel;delivery_->setObjectName("Hint");delivery_->setWordWrap(true);delivery_->setTextFormat(Qt::PlainText);delivery_->hide();composerLayout->addWidget(delivery_);layout->addWidget(composerCard);
         auto* usageCard=card();usageCard->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Maximum);auto* usageLayout=new QVBoxLayout(usageCard);usageLayout->setContentsMargins(8,5,8,5);usageLayout->setSpacing(2);usageTitle_=sectionTitle("Нагрузка плагина");usageLayout->addWidget(usageTitle_);auto* metrics=new QHBoxLayout;metrics->setSpacing(4);auto* cpuName=new QLabel("CPU");cpuName->setObjectName("Hint");metrics->addWidget(cpuName);cpuValue_=new QLabel("—");metrics->addWidget(cpuValue_);metrics->addStretch();memoryName_=new QLabel("Память данных");memoryName_->setObjectName("Hint");metrics->addWidget(memoryName_);memoryValue_=new QLabel("—");metrics->addWidget(memoryValue_);usageLayout->addLayout(metrics);usageCard_=usageCard;layout->addWidget(usageCard);
-        auto* footer=new QVBoxLayout;footer->setSpacing(0);auto* version=new QLabel("developed by OTMOROZOK · v" STREAM_CHAT_VERSION);version->setObjectName("Hint");version->setAlignment(Qt::AlignCenter);footer->addWidget(version);traffic_=new QLabel;traffic_->setAlignment(Qt::AlignCenter);traffic_->setStyleSheet("color:#72e9f4;font-size:10px;");traffic_->setToolTip("Трафик HTTP и WebSocket этого плагина с запуска OBS; без видео и сетевых заголовков");footer->addWidget(traffic_);layout->addLayout(footer);
+        auto* footer=new QVBoxLayout;footer->setSpacing(0);auto* version=new QLabel("developed by OTMOPOZOK · v" STREAM_CHAT_VERSION);version->setObjectName("Hint");version->setAlignment(Qt::AlignCenter);footer->addWidget(version);traffic_=new QLabel;traffic_->setAlignment(Qt::AlignCenter);traffic_->setStyleSheet("color:#72e9f4;font-size:10px;");traffic_->setToolTip("Трафик HTTP и WebSocket этого плагина с запуска OBS; без видео и сетевых заголовков");footer->addWidget(traffic_);layout->addLayout(footer);
         batch_.setInterval(20);batch_.setSingleShot(true);trafficTimer_.setInterval(2000);
         connect(&batch_,&QTimer::timeout,this,[this]{flush();});
         connect(&trafficTimer_,&QTimer::timeout,this,[this]{setStreaming(anyStreamingOutput());updateTraffic();updateMetrics();});
@@ -384,6 +386,7 @@ private:
     QAbstractButton* youtubeTarget_=nullptr;QComboBox* broadcast_=nullptr;QPushButton* googleLogin_=nullptr;QPushButton* googleLogout_=nullptr;
     QQueue<sc::ChatMessage> history_,pending_;QTimer batch_,trafficTimer_;QElapsedTimer usageClock_;QNetworkAccessManager emoteHttp_;QHash<QString,QPixmap> emotes_;QSet<QString> pendingEmotes_,failedEmotes_;std::uint64_t lastCpuNs_=0;int activeSends_=0;bool allSent_=false,twitchSent_=false,youtubeSent_=false;bool streaming_=false,seenThisStream_=false,english_=false;quint64 twitchMessages_=0,youtubeMessages_=0;QStringList results_;
 };
+#ifndef STREAM_CHAT_PREVIEW
 QPointer<ChatDock> dock;QString tlsPath;
 void createDock(){if(dock)return;auto* widget=new ChatDock;if(obs_frontend_add_dock_by_id(DockId,"Stream Chat",widget))dock=widget;else delete widget;}
 void onFrontendEvent(enum obs_frontend_event event,void*){
@@ -393,10 +396,13 @@ void onFrontendEvent(enum obs_frontend_event event,void*){
         QMetaObject::invokeMethod(current.data(),[current]{if(current)current->setStreaming(anyStreamingOutput());},Qt::QueuedConnection);
     }
 }
+#endif
 }
+#ifndef STREAM_CHAT_PREVIEW
 bool obs_module_load(void){
     char* path=obs_module_file("qt-plugins");if(path){tlsPath=QString::fromUtf8(path);bfree(path);QCoreApplication::addLibraryPath(tlsPath);}
     if(!QSslSocket::supportsSsl()&&QSslSocket::availableBackends().contains("schannel"))QSslSocket::setActiveBackend("schannel");
     obs_frontend_add_event_callback(onFrontendEvent,nullptr);blog(LOG_INFO,"Stream Chat OBS %s loaded; HTTPS: %s",STREAM_CHAT_VERSION,QSslSocket::supportsSsl()?"available":"unavailable");return true;
 }
 void obs_module_unload(void){obs_frontend_remove_event_callback(onFrontendEvent,nullptr);if(dock)obs_frontend_remove_dock(DockId);dock=nullptr;if(!tlsPath.isEmpty())QCoreApplication::removeLibraryPath(tlsPath);tlsPath.clear();}
+#endif
