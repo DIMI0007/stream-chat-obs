@@ -10,8 +10,12 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QPlainTextEdit>
+#include <QTextEdit>
 #include <QTextDocument>
+#include <QTextCursor>
+#include <QTextImageFormat>
+#include <QTextCharFormat>
+#include <QFont>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QHideEvent>
@@ -46,8 +50,8 @@ QPushButton#Primary:hover { background:#8af9d0; border-color:#c7ffea; }
 QPushButton#Primary:disabled { color:#71879b; background:#1a2b39; border-color:#314251; }
 QPushButton#Disconnect { color:#8ea1c0; background:#111b28; border:1px solid #304057; border-radius:7px; min-width:24px; max-width:24px; min-height:24px; max-height:24px; padding:0; font-size:16px; font-weight:700; }
 QPushButton#Disconnect:hover { color:#ff8d96; background:#2a1820; border-color:#8d4350; }
-QLineEdit,QPlainTextEdit,QComboBox { color:#e7eeff; background:#0c1420; border:1px solid #344865; border-radius:6px; padding:5px; selection-background-color:#316ac4; }
-QLineEdit:focus,QPlainTextEdit:focus,QComboBox:focus { border-color:#776af5; background:#111c2e; }
+QLineEdit,QTextEdit,QComboBox { color:#e7eeff; background:#0c1420; border:1px solid #344865; border-radius:6px; padding:5px; selection-background-color:#316ac4; }
+QLineEdit:focus,QTextEdit:focus,QComboBox:focus { border-color:#776af5; background:#111c2e; }
 QComboBox QAbstractItemView { background:#101a2b; color:#e7eeff; selection-background-color:#26344d; }
 QCheckBox { color:#dce7fb; spacing:6px; min-height:20px; }
 QCheckBox::indicator { width:15px; height:15px; }
@@ -100,6 +104,17 @@ protected:
 private: QString platform_;
 };
 
+QPixmap messagePlatformIcon(const QString& platform){
+    QPixmap image(36,36);image.fill(Qt::transparent);QPainter p(&image);p.setRenderHint(QPainter::Antialiasing);p.scale(1.5,1.5);
+    const QColor brand=platform=="YouTube"?QColor("#ff1538"):QColor("#9146ff");p.setPen(Qt::NoPen);p.setBrush(brand);p.drawRoundedRect(QRectF(1,1,22,22),6,6);p.setBrush(Qt::white);
+    if(platform=="YouTube"){
+        p.drawRoundedRect(QRectF(4,6,16,12),4,4);p.setBrush(brand);QPainterPath play;play.moveTo(10,8);play.lineTo(16,12);play.lineTo(10,16);play.closeSubpath();p.drawPath(play);
+    }else{
+        QPainterPath bubble;bubble.moveTo(5,4);bubble.lineTo(20,4);bubble.lineTo(20,16);bubble.lineTo(16,20);bubble.lineTo(11,20);bubble.lineTo(8,23);bubble.lineTo(8,19);bubble.lineTo(5,19);bubble.closeSubpath();p.drawPath(bubble);p.setPen(QPen(brand,1.6));p.drawLine(11,8,11,14);p.drawLine(16,8,16,14);
+    }
+    return image;
+}
+
 QWidget* card(){auto* result=new QWidget;result->setObjectName("Card");return result;}
 QLabel* sectionTitle(const QString& text){auto* result=new QLabel(text);result->setObjectName("Section");return result;}
 QString compactStatus(QString value,const QString& platform){value.remove(platform+": ");value.replace("чат подключён","Подключён",Qt::CaseInsensitive);value.replace("не подключён","Не подключён",Qt::CaseInsensitive);value.replace("вход выполнен, чат приостановлен","Вход выполнен",Qt::CaseInsensitive);value.replace("подтвердите разрешение в браузере","Подтвердите вход в браузере",Qt::CaseInsensitive);return value;}
@@ -137,7 +152,8 @@ public:
             if(choices.size()==1)broadcast_->setCurrentIndex(1);
         });
         auto* chatCard=card();auto* chatLayout=new QVBoxLayout(chatCard);chatLayout->setContentsMargins(8,7,8,8);chatLayout->setSpacing(5);chatLayout->addWidget(sectionTitle("Чат"));
-        messages_=new QPlainTextEdit;messages_->setReadOnly(true);messages_->document()->setMaximumBlockCount(500);messages_->setPlaceholderText("Здесь появятся сообщения. История хранится только до закрытия OBS.");chatLayout->addWidget(messages_,1);
+        messages_=new QTextEdit;messages_->setReadOnly(true);messages_->setAcceptRichText(false);messages_->document()->setMaximumBlockCount(500);messages_->setPlaceholderText("Здесь появятся сообщения. История хранится только до закрытия OBS.");
+        messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/twitch"),messagePlatformIcon("Twitch"));messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/youtube"),messagePlatformIcon("YouTube"));chatLayout->addWidget(messages_,1);
         auto* targets=new QHBoxLayout;auto* recipientHint=new QLabel("Куда отправлять");recipientHint->setObjectName("Hint");targets->addWidget(recipientHint);targets->addStretch();target_=new PlatformToggle("Twitch");target_->setChecked(true);targets->addWidget(target_);youtubeTarget_=new PlatformToggle("YouTube");targets->addWidget(youtubeTarget_);chatLayout->addLayout(targets);layout->addWidget(chatCard,1);
         auto* composerCard=card();auto* composerLayout=new QVBoxLayout(composerCard);composerLayout->setContentsMargins(8,7,8,8);composerLayout->setSpacing(5);auto* composer=new QHBoxLayout;input_=new QLineEdit;input_->setMaxLength(500);input_->setPlaceholderText("Сообщение в выбранные каналы");send_=new QPushButton("Отправить");send_->setObjectName("Primary");composer->addWidget(input_,1);composer->addWidget(send_);composerLayout->addLayout(composer);delivery_=new QLabel;delivery_->setObjectName("Hint");delivery_->setWordWrap(true);delivery_->setTextFormat(Qt::PlainText);delivery_->hide();composerLayout->addWidget(delivery_);layout->addWidget(composerCard);
         auto* version=new QLabel("developed by OTMOROZOK · v" STREAM_CHAT_VERSION);version->setObjectName("Hint");version->setAlignment(Qt::AlignCenter);layout->addWidget(version);
@@ -164,7 +180,14 @@ protected:
     void showEvent(QShowEvent* event)override{QWidget::showEvent(event);twitch_.setVisible(true);youtube_.setVisible(true);if(!pending_.isEmpty())batch_.start();}
     void hideEvent(QHideEvent* event)override{twitch_.setVisible(false);youtube_.setVisible(false);batch_.stop();if(activeSends_)delivery_->setText("Панель скрыта: результат отправки не подтверждён. Автоматического повтора нет.");activeSends_=0;refresh();QWidget::hideEvent(event);}
 private:
-    QString line(const sc::ChatMessage& message)const{auto text=message.text;auto author=message.author;text.replace('\n',' ');text.replace('\r',' ');author.replace('\n',' ');author.replace('\r',' ');return "["+message.platform+"] "+author+": "+text;}
+    void appendMessage(const sc::ChatMessage& message){
+        auto text=message.text,author=message.author;text.replace('\n',' ');text.replace('\r',' ');author.replace('\n',' ');author.replace('\r',' ');
+        QTextCursor cursor(messages_->document());cursor.movePosition(QTextCursor::End);if(!messages_->document()->isEmpty())cursor.insertBlock();
+        QTextImageFormat icon;icon.setName(message.platform=="YouTube"?"stream-chat://icon/youtube":"stream-chat://icon/twitch");icon.setWidth(18);icon.setHeight(18);cursor.insertImage(icon);cursor.insertText(" ");
+        const bool youtube=message.platform=="YouTube";const QColor accent=youtube?QColor("#ff8491"):QColor("#b995ff");const QColor tint=youtube?QColor("#32181d"):QColor("#241b35");
+        QTextCharFormat authorStyle;authorStyle.setForeground(accent);authorStyle.setBackground(tint);authorStyle.setFontWeight(QFont::DemiBold);cursor.insertText(" "+author+" ",authorStyle);
+        QTextCharFormat messageStyle;messageStyle.setForeground(QColor("#dfe8ff"));cursor.insertText("  "+text,messageStyle);messages_->ensureCursorVisible();
+    }
     void refresh(){
         paintStatus(twitchStatus_,twitch_.status(),"Twitch",twitch_.ready());paintStatus(youtubeStatus_,youtube_.status(),"YouTube",youtube_.ready());
         const bool twitchBusy=code_->isVisible()&&twitch_.status().contains("подтвердите",Qt::CaseInsensitive);if(code_->isVisible()&&!twitchBusy&&!twitch_.ready())code_->hide();
@@ -193,13 +216,13 @@ private:
         --activeSends_;if(!activeSends_){if(allSent_)input_->clear();else {if(twitchSent_)target_->setChecked(false);if(youtubeSent_)youtubeTarget_->setChecked(false);}}
         delivery_->setText(results_.join('\n'));refresh();
     }
-    void flush(){int count=0;while(!pending_.isEmpty()&&count++<50){const auto message=pending_.dequeue();history_.enqueue(message);while(history_.size()>500)history_.dequeue();messages_->appendPlainText(line(message));}if(!pending_.isEmpty())batch_.start();}
+    void flush(){int count=0;while(!pending_.isEmpty()&&count++<50){const auto message=pending_.dequeue();history_.enqueue(message);while(history_.size()>500)history_.dequeue();appendMessage(message);}if(!pending_.isEmpty())batch_.start();}
     template<class Predicate>void remove(Predicate predicate){
         history_.erase(std::remove_if(history_.begin(),history_.end(),predicate),history_.end());
         pending_.erase(std::remove_if(pending_.begin(),pending_.end(),predicate),pending_.end());
-        QStringList lines;for(const auto& message:history_)lines.append(line(message));messages_->setPlainText(lines.join('\n'));
+        messages_->clear();for(const auto& message:history_)appendMessage(message);
     }
-    sc::TwitchChat twitch_;sc::YouTubeChat youtube_;QPlainTextEdit* messages_=nullptr;QLabel* twitchStatus_=nullptr;QLabel* youtubeStatus_=nullptr;QLabel* code_=nullptr;QLabel* delivery_=nullptr;
+    sc::TwitchChat twitch_;sc::YouTubeChat youtube_;QTextEdit* messages_=nullptr;QLabel* twitchStatus_=nullptr;QLabel* youtubeStatus_=nullptr;QLabel* code_=nullptr;QLabel* delivery_=nullptr;
     QLineEdit* input_=nullptr;QCheckBox* target_=nullptr;QPushButton* send_=nullptr;QPushButton* login_=nullptr;QPushButton* logout_=nullptr;
     QCheckBox* youtubeTarget_=nullptr;QComboBox* broadcast_=nullptr;QPushButton* googleLogin_=nullptr;QPushButton* googleLogout_=nullptr;QPushButton* find_=nullptr;
     QQueue<sc::ChatMessage> history_,pending_;QTimer batch_;int activeSends_=0;bool allSent_=false,twitchSent_=false,youtubeSent_=false;QStringList results_;
