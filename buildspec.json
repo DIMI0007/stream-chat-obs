@@ -32,8 +32,9 @@
   },
   "name": "stream-chat-obs",
   "displayName": "Stream Chat OBS",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "author": "Stream Chat OBS Contributors",
   "website": "https://github.com",
   "email": "stream-chat-obs@example.invalid"
 }
+

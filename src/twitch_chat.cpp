@@ -17,10 +17,12 @@ TwitchChat::TwitchChat(QString path,QObject* parent):QObject(parent),vault_(std:
     bool ok=false;tokens_=vault_.load(&ok);if(!ok)status_="Twitch: не удалось прочитать защищённые настройки";
     deviceTimer_.setSingleShot(true);retryTimer_.setSingleShot(true);watchdog_.setSingleShot(true);
     validationTimer_.setInterval(3600000);
+    viewerTimer_.setInterval(30000);
     connect(&deviceTimer_,&QTimer::timeout,this,&TwitchChat::pollDevice);
     connect(&retryTimer_,&QTimer::timeout,this,[this]{validate();});
     connect(&validationTimer_,&QTimer::timeout,this,[this]{validate();});
     connect(&watchdog_,&QTimer::timeout,this,&TwitchChat::retry);
+    connect(&viewerTimer_,&QTimer::timeout,this,&TwitchChat::pollViewers);
 }
 TwitchChat::~TwitchChat(){stopNetwork();}
 void TwitchChat::setStatus(const QString& value){if(status_!=value){status_=value;Q_EMIT changed();}}
@@ -41,7 +43,7 @@ void TwitchChat::request(const QUrl& url,const QByteArray& method,const QByteArr
 }
 void TwitchChat::stopNetwork(){
     ++generation_;ready_=false;subscribed_=false;refreshing_=false;validating_=false;
-    deviceTimer_.stop();retryTimer_.stop();validationTimer_.stop();watchdog_.stop();deviceCode_.clear();
+    deviceTimer_.stop();retryTimer_.stop();validationTimer_.stop();watchdog_.stop();viewerTimer_.stop();viewerRequest_=false;deviceCode_.clear();
     if(replacement_){replacement_->disconnect(this);replacement_->abort();replacement_->deleteLater();replacement_=nullptr;}
     if(socket_){socket_->disconnect(this);socket_->abort();socket_->deleteLater();socket_=nullptr;}
     const auto pending=replies_.values();replies_.clear();for(auto* reply:pending)reply->abort();
@@ -52,6 +54,27 @@ void TwitchChat::setVisible(bool active){
     else if(!tokens_.value("access_token").toString().isEmpty())validate();
     else setStatus("Twitch: не подключён");
     Q_EMIT changed();
+}
+void TwitchChat::setStreamActive(bool active){
+    if(streamActive_==active)return;streamActive_=active;
+    if(!active){viewerTimer_.stop();viewerCount_=-1;viewerUpdated_={};Q_EMIT changed();return;}
+    if(visible_&&!userId_.isEmpty()&&!tokens_.value("access_token").toString().isEmpty()){
+        viewerTimer_.setInterval(30000);viewerTimer_.start();pollViewers();
+    }
+}
+void TwitchChat::pollViewers(){
+    if(!visible_||!streamActive_||viewerRequest_||userId_.isEmpty()||tokens_.value("access_token").toString().isEmpty())return;
+    viewerRequest_=true;QUrl url("https://api.twitch.tv/helix/streams");QUrlQuery query;query.addQueryItem("user_id",userId_);url.setQuery(query);
+    request(url,"GET",{}, {},true,[this](int http,const QJsonObject& data){
+        viewerRequest_=false;
+        if(http==401){refresh();return;}
+        if(http==429){viewerTimer_.setInterval(120000);Q_EMIT changed();return;}
+        if(http!=200){Q_EMIT changed();return;}
+        viewerTimer_.setInterval(30000);
+        const auto streams=data.value("data").toArray();
+        viewerCount_=streams.isEmpty()?-1:streams.first().toObject().value("viewer_count").toInt(-1);
+        viewerUpdated_=QDateTime::currentDateTimeUtc();Q_EMIT changed();
+    });
 }
 void TwitchChat::signIn(){
     stopNetwork();setStatus("Twitch: получаем код входа…");
@@ -97,6 +120,7 @@ void TwitchChat::validate(bool allowRefresh){
             return;
         }
         userId_=data.value("user_id").toString();validationTimer_.start();
+        if(visible_&&streamActive_&&!viewerTimer_.isActive()){viewerTimer_.start();pollViewers();}
         if(visible_&&!socket_){setStatus("Twitch: подключаем чат "+data.value("login").toString());openSocket();}
         else if(visible_&&socket_&&subscribed_){ready_=true;setStatus("Twitch: чат подключён");Q_EMIT changed();}
         else if(!visible_)setStatus("Twitch: вход выполнен, чат приостановлен");
@@ -113,7 +137,7 @@ void TwitchChat::refresh(){
         else {setStatus("Twitch: не удалось обновить подключение");retry();}
     });
 }
-void TwitchChat::signOut(){stopNetwork();tokens_={};userId_.clear();if(!vault_.save({}))setStatus("Twitch: ошибка удаления локального токена");else setStatus("Twitch: отключён");Q_EMIT changed();}
+void TwitchChat::signOut(){stopNetwork();tokens_={};userId_.clear();viewerCount_=-1;viewerUpdated_={};if(!vault_.save({}))setStatus("Twitch: ошибка удаления локального токена");else setStatus("Twitch: отключён");Q_EMIT changed();}
 void TwitchChat::openSocket(const QUrl& url,bool migration){
     if(!visible_||url.scheme()!="wss"||url.host()!="eventsub.wss.twitch.tv"||!url.userInfo().isEmpty()||(url.port()!=-1&&url.port()!=443))return;
     auto* ws=new QWebSocket(QString(),QWebSocketProtocol::VersionLatest,this);
@@ -199,3 +223,4 @@ void TwitchChat::send(const QString& text){
     });
 }
 }
+

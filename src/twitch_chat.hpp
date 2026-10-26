@@ -19,11 +19,14 @@ public:
     explicit TwitchChat(QString tokenPath,QObject* parent=nullptr);
     ~TwitchChat() override;
     void setVisible(bool active);
+    void setStreamActive(bool active);
     void signIn();
     void signOut();
     void send(const QString& text);
     bool ready()const{return ready_;}
     QString status()const{return status_;}
+    int viewerCount()const{return viewerCount_;}
+    bool viewerFresh()const{return viewerUpdated_.isValid()&&viewerUpdated_.secsTo(QDateTime::currentDateTimeUtc())<90;}
 Q_SIGNALS:
     void changed();
     void message(const sc::ChatMessage& message);
@@ -44,16 +47,18 @@ private:
     void receive(QWebSocket* socket,const QString& text,bool migration);
     void subscribe(const QString& session);
     void retry();
+    void pollViewers();
     void stopNetwork();
     SecureStore vault_;QJsonObject tokens_;
     QNetworkAccessManager http_;QSet<QNetworkReply*> replies_;
     QPointer<QWebSocket> socket_,replacement_;
-    QTimer deviceTimer_,retryTimer_,validationTimer_,watchdog_;
+    QTimer deviceTimer_,retryTimer_,validationTimer_,watchdog_,viewerTimer_;
     QQueue<QString> seenOrder_;QSet<QString> seen_;
     QString userId_,status_="Twitch: не подключён",deviceCode_;
     QDateTime deviceExpires_;quint64 generation_=0;
+    QDateTime viewerUpdated_;int viewerCount_=-1;
     int deviceInterval_=5,retries_=0,keepalive_=10;
-    bool visible_=false,ready_=false,subscribed_=false,refreshing_=false,validating_=false;
+    bool visible_=false,ready_=false,subscribed_=false,refreshing_=false,validating_=false,streamActive_=false,viewerRequest_=false;
 };
 }
 

@@ -38,10 +38,11 @@ QString oauthFailure(int http,const QJsonObject& data){
 }
 YouTubeChat::YouTubeChat(QString path,QObject* parent):QObject(parent),vault_(std::move(path)),login_(this){
     bool ok=false;tokens_=vault_.load(&ok);if(!ok)status_="YouTube: не удалось прочитать защищённые настройки";
-    retry_.setSingleShot(true);expiry_.setSingleShot(true);search_.setInterval(10000);
+    retry_.setSingleShot(true);expiry_.setSingleShot(true);search_.setInterval(10000);viewerTimer_.setInterval(60000);
     connect(&search_,&QTimer::timeout,this,[this]{if(streamActive_&&visible_&&!ready_&&chatId_.isEmpty())discover();});
     connect(&retry_,&QTimer::timeout,this,[this]{if(chatId_.isEmpty())discover();else openStream();});
     connect(&expiry_,&QTimer::timeout,this,&YouTubeChat::refresh);
+    connect(&viewerTimer_,&QTimer::timeout,this,&YouTubeChat::pollViewers);
     connect(&login_,&OAuthLoopback::failed,this,[this](const QString&){verifier_.clear();setStatus("YouTube: вход отменён или время истекло");});
     connect(&login_,&OAuthLoopback::received,this,[this](const QUrlQuery& query){
         const auto code=query.queryItemValue("code",QUrl::FullyDecoded);const auto redirect=login_.redirect().toString();
@@ -70,7 +71,7 @@ void YouTubeChat::request(const QUrl& url,const QByteArray& method,const QByteAr
     });
 }
 void YouTubeChat::stopStream(){if(stream_){auto reply=stream_;stream_=nullptr;reply->disconnect(this);reply->abort();reply->deleteLater();}frames_.clear();ready_=false;}
-void YouTubeChat::stopNetwork(){++generation_;stopStream();login_.stop();retry_.stop();expiry_.stop();search_.stop();refreshing_=false;finding_=false;verifier_.clear();const auto pending=replies_.values();replies_.clear();for(auto* reply:pending)reply->abort();}
+void YouTubeChat::stopNetwork(){++generation_;stopStream();login_.stop();retry_.stop();expiry_.stop();search_.stop();viewerTimer_.stop();viewerRequest_=false;refreshing_=false;finding_=false;verifier_.clear();const auto pending=replies_.values();replies_.clear();for(auto* reply:pending)reply->abort();}
 void YouTubeChat::setVisible(bool active){
     if(visible_==active)return;visible_=active;
     if(!active){stopNetwork();setStatus("YouTube: приостановлен");}
@@ -82,8 +83,9 @@ void YouTubeChat::setVisible(bool active){
 }
 void YouTubeChat::setStreamActive(bool active){
     if(streamActive_==active)return;streamActive_=active;
-    if(!active){search_.stop();if(chatId_.isEmpty()&&signedIn())setStatus("YouTube: ожидаем начала эфира");return;}
+    if(!active){search_.stop();viewerTimer_.stop();viewerCount_=-1;viewerUpdated_={};Q_EMIT changed();if(chatId_.isEmpty()&&signedIn())setStatus("YouTube: ожидаем начала эфира");return;}
     if(visible_&&signedIn()&&chatId_.isEmpty()){search_.start();setStatus("YouTube: ждём поиск эфира");}
+    else if(visible_&&signedIn()&&!videoId_.isEmpty()){viewerTimer_.start();pollViewers();}
 }
 void YouTubeChat::signIn(){
     stopNetwork();chatId_.clear();pageToken_.clear();authRetries_=0;
@@ -116,19 +118,22 @@ void YouTubeChat::refresh(){
         else {setStatus("YouTube: не удалось обновить вход, повторите подключение");}Q_EMIT changed();
     });
 }
-void YouTubeChat::signOut(){stopNetwork();tokens_={};chatId_.clear();pageToken_.clear();Q_EMIT broadcasts({});setStatus(vault_.save({})?"YouTube: отключён":"YouTube: не удалось удалить сохранённый токен");Q_EMIT changed();}
+void YouTubeChat::signOut(){stopNetwork();tokens_={};chatId_.clear();pageToken_.clear();videoId_.clear();chatVideos_.clear();viewerCount_=-1;viewerUpdated_={};Q_EMIT broadcasts({});setStatus(vault_.save({})?"YouTube: отключён":"YouTube: не удалось удалить сохранённый токен");Q_EMIT changed();}
 void YouTubeChat::discover(){
     if(!visible_||finding_||refreshing_||tokens_.value("access_token").toString().isEmpty())return;
     if(tokens_.value("expires_at").toDouble()<=double(QDateTime::currentSecsSinceEpoch()+60)){refresh();return;}
     expiry_.start(int(std::clamp(tokens_.value("expires_at").toDouble()-double(QDateTime::currentSecsSinceEpoch())-60.0,1.0,86400.0))*1000);
-    stopStream();chatId_.clear();pageToken_.clear();finding_=true;setStatus("YouTube: ищем активный эфир…");
+    stopStream();chatId_.clear();pageToken_.clear();videoId_.clear();chatVideos_.clear();finding_=true;setStatus("YouTube: ищем активный эфир…");
     QUrl url("https://www.googleapis.com/youtube/v3/liveBroadcasts");QUrlQuery q;q.addQueryItem("part","snippet");q.addQueryItem("broadcastStatus","active");q.addQueryItem("broadcastType","all");q.addQueryItem("maxResults","50");url.setQuery(q);
     request(url,"GET",{},true,[this](int http,const QJsonObject& data){
         finding_=false;if(http==401){refresh();return;}
         if(http!=200){if(http==403||http==429)search_.stop();setStatus(QString("YouTube: эфир недоступен (HTTP %1). Проверьте доступ и квоту API.").arg(http));return;}
         QJsonArray choices;for(const auto& item:data.value("items").toArray()){
-            const auto snippet=item.toObject().value("snippet").toObject();const auto id=snippet.value("liveChatId").toString();
-            if(!id.isEmpty())choices.append(QJsonObject{{"id",id},{"title",snippet.value("title").toString().left(200)}});
+            const auto broadcast=item.toObject();const auto snippet=broadcast.value("snippet").toObject();const auto id=snippet.value("liveChatId").toString();
+            if(!id.isEmpty()){
+                chatVideos_.insert(id,broadcast.value("id").toString());
+                choices.append(QJsonObject{{"id",id},{"title",snippet.value("title").toString().left(200)}});
+            }
         }
         Q_EMIT broadcasts(choices);
         if(choices.size()==1)selectChat(choices.first().toObject().value("id").toString());
@@ -136,10 +141,13 @@ void YouTubeChat::discover(){
         else {search_.stop();setStatus("YouTube: выберите эфир для подключения");}
     });
 }
-void YouTubeChat::selectChat(const QString& id){if(id.isEmpty()||id.size()>512||!visible_)return;search_.stop();stopStream();chatId_=id;pageToken_.clear();attempts_=0;authRetries_=0;seen_.clear();seenOrder_.clear();openStream();}
+void YouTubeChat::selectChat(const QString& id){if(id.isEmpty()||id.size()>512||!visible_)return;search_.stop();stopStream();chatId_=id;videoId_=chatVideos_.value(id);viewerCount_=-1;viewerUpdated_={};pageToken_.clear();attempts_=0;authRetries_=0;seen_.clear();seenOrder_.clear();openStream();}
 void YouTubeChat::openStream(){
     if(!visible_||chatId_.isEmpty()||refreshing_)return;
     stopStream();retry_.stop();setStatus("YouTube: подключаем поток чата…");
+    if(streamActive_&&!videoId_.isEmpty()&&!viewerTimer_.isActive()){
+        viewerTimer_.setInterval(60000);viewerTimer_.start();pollViewers();
+    }
     QNetworkRequest req(QUrl("https://youtube.googleapis.com/youtube.api.v3.V3DataLiveChatMessageService/StreamList"));
     req.setAttribute(QNetworkRequest::Http2AllowedAttribute,true);req.setAttribute(QNetworkRequest::Http2DirectAttribute,true);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);
@@ -172,9 +180,26 @@ void YouTubeChat::receive(){
             if(!ready_){ready_=true;attempts_=0;authRetries_=0;setStatus("YouTube: чат подключён");Q_EMIT changed();}
             for(const auto& id:batch.removedIds)Q_EMIT removeMessage(id);
             for(const auto& message:batch.messages){if(seen_.contains(message.id))continue;seen_.insert(message.id);seenOrder_.enqueue(message.id);while(seenOrder_.size()>1000)seen_.remove(seenOrder_.dequeue());Q_EMIT this->message(message);}
-            if(batch.ended){stopStream();chatId_.clear();setStatus("YouTube: эфир завершён");Q_EMIT changed();return;}
+            if(batch.ended){stopStream();chatId_.clear();videoId_.clear();viewerTimer_.stop();viewerCount_=-1;viewerUpdated_={};setStatus("YouTube: эфир завершён");Q_EMIT changed();return;}
         }
     }
+}
+void YouTubeChat::pollViewers(){
+    if(!visible_||!streamActive_||viewerRequest_||videoId_.isEmpty()||refreshing_||!signedIn())return;
+    viewerRequest_=true;const auto expectedVideo=videoId_;QUrl url("https://www.googleapis.com/youtube/v3/videos");QUrlQuery query;
+    query.addQueryItem("part","liveStreamingDetails");query.addQueryItem("id",expectedVideo);url.setQuery(query);
+    request(url,"GET",{},true,[this,expectedVideo](int http,const QJsonObject& data){
+        viewerRequest_=false;
+        if(videoId_!=expectedVideo||!streamActive_)return;
+        if(http==401){refresh();return;}
+        if(http==403||http==429){viewerTimer_.stop();Q_EMIT changed();return;}
+        if(http!=200){Q_EMIT changed();return;}
+        const auto items=data.value("items").toArray();
+        const auto details=items.isEmpty()?QJsonObject():items.first().toObject().value("liveStreamingDetails").toObject();
+        bool valid=false;const auto count=details.value("concurrentViewers").toString().toLongLong(&valid);
+        viewerCount_=valid?int(std::clamp<qint64>(count,0,2147483647)):-1;
+        viewerUpdated_=QDateTime::currentDateTimeUtc();Q_EMIT changed();
+    });
 }
 void YouTubeChat::retry(){
     if(!visible_||retry_.isActive())return;
@@ -189,3 +214,4 @@ void YouTubeChat::send(const QString& text){
     });
 }
 }
+

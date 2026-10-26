@@ -5,7 +5,7 @@
 <p><img alt="OBS 33.0.0" src="https://img.shields.io/badge/OBS-33.0.0-302E31"> <img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-0078D4"> <img alt="Native Qt" src="https://img.shields.io/badge/UI-native_Qt-00B88C"></p>
 </div>
 
-A native OBS dock for reading chat and sending messages to your own channels. It runs locally without a project-operated backend. Test version **0.3.6** supports Twitch and YouTube; live YouTube chat still needs validation during a broadcast.
+A native OBS dock for reading chat and sending messages to your own channels. It runs locally without a project-operated backend. Test version **0.3.7** supports Twitch and YouTube; live YouTube chat still needs validation during a broadcast.
 
 [Windows test builds](https://github.com/DIMI0007/stream-chat-obs/actions/workflows/build-windows.yml)
 
@@ -26,7 +26,7 @@ This is an **alpha build**, not a completed public release. Passing CI does not 
 
 The dock uses native Qt widgets, with no embedded browser UI. History is limited to 500 messages and remains in memory. Message counts also remain in memory and reset when OBS closes. Small batches update the view; Twitch emotes appearing in messages are loaded on demand from Twitch's official CDN, with at most 64 icons cached. Avatars are not downloaded. Hidden docks stop network connections and timers.
 
-Twitch uses EventSub WebSockets. YouTube uses the official HTTP/2 streaming API. Stream discovery starts 10 seconds after OBS starts streaming and repeats every 10 seconds only until a chat is found. Message sends with uncertain outcomes are never automatically repeated. Accounts are stored locally with Windows DPAPI protection, and user tokens are never used in CI.
+Twitch uses EventSub WebSockets. YouTube uses the official HTTP/2 streaming API. Stream discovery starts 10 seconds after OBS starts streaming and repeats every 10 seconds only until a chat is found. During a broadcast, Twitch viewer count refreshes every 30 seconds and YouTube every minute; polling stops when the stream or dock closes. Unavailable counts are not shown as zero. Message sends with uncertain outcomes are never automatically repeated. Accounts are stored locally with Windows DPAPI protection, and user tokens are never used in CI.
 
 The compact usage card shows instrumented plugin CPU work and an estimate of retained chat data. Session HTTP/WS traffic appears below the version footer; it excludes video traffic and network headers.
 
@@ -67,3 +67,4 @@ Include the version, source commit from `BUILD_INFO.json` and the safe error mes
 [Documentation standard (Russian)](DOCUMENTATION_STANDARD_RU.md)
 
 Developed by [OTMOPOZOK](https://www.youtube.com/channel/UCTAKYR3T2Ud8zZgNShgQfyw/).
+
