@@ -28,6 +28,7 @@
 #include <QMainWindow>
 #include <QAction>
 #include <QDesktopServices>
+#include <QIcon>
 #include <QSlider>
 #include <QRegularExpression>
 #include <QVBoxLayout>
@@ -83,8 +84,8 @@ QPushButton#Primary:hover { background:#8af9d0; border-color:#c7ffea; }
 QPushButton#Primary:disabled { color:#71879b; background:#1a2b39; border-color:#314251; }
 QPushButton#Disconnect { color:#8ea1c0; background:#111b28; border:1px solid #304057; border-radius:7px; min-width:24px; max-width:24px; min-height:24px; max-height:24px; padding:0; font-size:16px; font-weight:700; }
 QPushButton#Disconnect:hover { color:#ff8d96; background:#2a1820; border-color:#8d4350; }
-QPushButton#Settings { color:#a9bbd6; background:#172236; border:1px solid #354863; border-radius:7px; min-width:27px; max-width:27px; min-height:27px; max-height:27px; padding:0; font-size:19px; }
-QPushButton#Settings:hover { color:#e7fff4; background:#26344d; }
+QPushButton#Settings { color:#e1ebff; background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #202a3b,stop:1 #141d2b); border:1px solid #39465d; border-radius:8px; min-width:30px; max-width:30px; min-height:28px; max-height:28px; padding:0; }
+QPushButton#Settings:hover { background:#26344d; border-color:#6476a0; }
 QPushButton#ScrollBottom { color:#b7efff; background:#17283a; border:1px solid #34627b; border-radius:7px; min-height:18px; max-height:18px; padding:0 6px; font-size:10px; }
 QPushButton#ScrollBottom:hover { color:#ffffff; background:#24405a; }
 QPushButton#Credit { color:#9299a5; background:transparent; border:0; min-height:20px; max-height:20px; padding:0; font-size:11px; }
@@ -107,6 +108,15 @@ QString scaledChatStyle(int percent){
         last=match.capturedEnd();
     }
     return result+source.mid(last);
+}
+QIcon settingsIcon(){
+    QPixmap image(48,48);image.fill(Qt::transparent);
+    QPainter painter(&image);painter.setRenderHint(QPainter::Antialiasing);painter.scale(2,2);
+    painter.setPen(QPen(QColor("#aebde3"),1.7,Qt::SolidLine,Qt::RoundCap,Qt::RoundJoin));painter.setBrush(Qt::NoBrush);
+    painter.translate(12,12);
+    for(int i=0;i<8;++i){painter.drawLine(QPointF(0,-8),QPointF(0,-10));painter.rotate(45);}
+    painter.drawEllipse(QPointF(0,0),6.8,6.8);painter.drawEllipse(QPointF(0,0),2.5,2.5);
+    painter.end();image.setDevicePixelRatio(2);return QIcon(image);
 }
 
 class PlatformBadge final : public QWidget {
@@ -245,7 +255,7 @@ public:
         {QSettings saved(configPath("ui.ini"),QSettings::IniFormat);textScale_=std::clamp(saved.value("textScale",100).toInt(),80,140);}
         setObjectName("StreamChatRoot");setMinimumWidth(320);setStyleSheet(scaledChatStyle(textScale_));
         auto* layout=new QVBoxLayout(this);layout->setContentsMargins(8,8,8,8);layout->setSpacing(5);
-        auto* header=new QHBoxLayout;header->setContentsMargins(2,2,2,2);header->setSpacing(7);header->addWidget(new PlatformBadge("Stream Chat"));auto* title=new QLabel("Stream Chat");title->setObjectName("Title");header->addWidget(title,1);settings_=new QPushButton("⚙");settings_->setObjectName("Settings");settings_->setToolTip("Настройки");settings_->setAccessibleName("Настройки");header->addWidget(settings_);layout->addLayout(header);
+        auto* header=new QHBoxLayout;header->setContentsMargins(2,2,2,2);header->setSpacing(7);header->addWidget(new PlatformBadge("Stream Chat"));auto* title=new QLabel("Stream Chat");title->setObjectName("Title");header->addWidget(title,1);settings_=new QPushButton;settings_->setObjectName("Settings");settings_->setIcon(settingsIcon());settings_->setIconSize(QSize(19,19));settings_->setFixedSize(30,28);settings_->setToolTip("Настройки");settings_->setAccessibleName("Настройки");header->addWidget(settings_);layout->addLayout(header);
 
         auto* twitchCard=card();auto* twitchLayout=new QVBoxLayout(twitchCard);twitchLayout->setContentsMargins(8,6,8,6);twitchLayout->setSpacing(5);
         auto* twitchHead=new QHBoxLayout;twitchHead->setSpacing(6);twitchHead->addWidget(new PlatformBadge("Twitch"));twitchHead->addWidget(sectionTitle("Twitch"));twitchViewers_=new QLabel;twitchViewers_->setObjectName("Hint");twitchViewers_->setToolTip("Смотрят Twitch сейчас");twitchHead->addWidget(twitchViewers_);twitchStatus_=new QLabel;twitchStatus_->setAlignment(Qt::AlignRight|Qt::AlignVCenter);twitchStatus_->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Preferred);twitchHead->addWidget(twitchStatus_,1);login_=new QPushButton("Войти");twitchHead->addWidget(login_);logout_=new QPushButton("×");logout_->setObjectName("Disconnect");logout_->setToolTip("Отключить Twitch");twitchHead->addWidget(logout_);twitchLayout->addLayout(twitchHead);
