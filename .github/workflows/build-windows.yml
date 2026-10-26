@@ -24,6 +24,19 @@ jobs:
         run: cmake --build --preset windows-x64 --config RelWithDebInfo --parallel
       - name: Test protected storage, OAuth and YouTube stream framing
         run: ctest --test-dir build_x64 -C RelWithDebInfo --output-on-failure
+      - name: Render Russian and English dock previews
+        shell: pwsh
+        run: |
+          $qtRoot = Join-Path $PWD ".deps/obs-deps-qt6-2026-10-23-x64"
+          $env:PATH = "$qtRoot/bin;$PWD/build_x64/qtwebsockets-install/bin;$env:PATH"
+          $env:QT_PLUGIN_PATH = "$qtRoot/plugins"
+          & ./build_x64/RelWithDebInfo/stream-chat-ui-preview.exe ui-previews
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StreamChat-UI-Previews
+          path: ui-previews/*.png
+          if-no-files-found: error
       - name: Stage plugin package
         shell: pwsh
         env:

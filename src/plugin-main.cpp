@@ -20,6 +20,8 @@
 #include <QTextCharFormat>
 #include <QFont>
 #include <QPushButton>
+#include <QDialog>
+#include <QSettings>
 #include <QVBoxLayout>
 #include <QHideEvent>
 #include <QShowEvent>
@@ -63,6 +65,8 @@ QPushButton#Primary:hover { background:#8af9d0; border-color:#c7ffea; }
 QPushButton#Primary:disabled { color:#71879b; background:#1a2b39; border-color:#314251; }
 QPushButton#Disconnect { color:#8ea1c0; background:#111b28; border:1px solid #304057; border-radius:7px; min-width:24px; max-width:24px; min-height:24px; max-height:24px; padding:0; font-size:16px; font-weight:700; }
 QPushButton#Disconnect:hover { color:#ff8d96; background:#2a1820; border-color:#8d4350; }
+QPushButton#Settings { color:#a9bbd6; background:#172236; border:1px solid #354863; border-radius:7px; min-width:27px; max-width:27px; min-height:27px; max-height:27px; padding:0; font-size:19px; }
+QPushButton#Settings:hover { color:#e7fff4; background:#26344d; }
 QLineEdit,QTextEdit,QComboBox { color:#e7eeff; background:#0c1420; border:1px solid #344865; border-radius:6px; padding:5px; selection-background-color:#316ac4; }
 QLineEdit:focus,QTextEdit:focus,QComboBox:focus { border-color:#776af5; background:#111c2e; }
 QComboBox QAbstractItemView { background:#101a2b; color:#e7eeff; selection-background-color:#26344d; }
@@ -145,22 +149,50 @@ QString compactStatus(QString value,const QString& platform){
     if(value.contains("эфир завершён",Qt::CaseInsensitive))return "Эфир завершён";
     return value.size()>22?value.left(21)+"…":value;
 }
-void paintStatus(QLabel* label,const QString& raw,const QString& platform,bool ready){
+QString englishStatus(const QString& value){
+    if(value=="Подключён")return "Connected";
+    if(value=="Не подключён")return "Not connected";
+    if(value=="Подтвердите вход")return "Confirm sign-in";
+    if(value=="Завершаем вход")return "Signing in";
+    if(value=="Ищем эфир")return "Finding stream";
+    if(value=="Эфир не найден")return "Stream not found";
+    if(value=="Подключаем чат"||value=="Подключение")return "Connecting";
+    if(value=="Ошибка входа")return "Sign-in error";
+    if(value=="Ошибка подключения")return "Connection error";
+    if(value=="Эфир завершён")return "Stream ended";
+    if(value.contains("приостановлен",Qt::CaseInsensitive))return "Paused";
+    if(value.contains("ожидаем",Qt::CaseInsensitive)||value.contains("ждём",Qt::CaseInsensitive))return "Waiting for stream";
+    if(value.contains("отключён",Qt::CaseInsensitive))return "Disconnected";
+    return "Connecting";
+}
+void paintStatus(QLabel* label,const QString& raw,const QString& platform,bool ready,bool english){
     const QString value=compactStatus(raw,platform);QString color="#8ea1c0";
     if(ready)color="#00df8c";
     else if(value.contains("ошиб",Qt::CaseInsensitive)||value.contains("отклон",Qt::CaseInsensitive))color="#ff7f88";
     else if(value=="Подключение"||value.contains("подтверд",Qt::CaseInsensitive)||value.contains("заверша",Qt::CaseInsensitive)||value.contains("ищем",Qt::CaseInsensitive)||value.contains("эфир не найден",Qt::CaseInsensitive))color="#ffcd57";
-    label->setToolTip(raw);label->setText("● "+value);label->setStyleSheet(QString("color:%1;font-size:11px;").arg(color));
+    const QString shown=english?englishStatus(value):value;
+    if(english){const auto http=raw.indexOf("(HTTP ");label->setToolTip(http<0?shown:shown+" "+raw.mid(http));}
+    else label->setToolTip(raw);
+    label->setText("● "+shown);label->setStyleSheet(QString("color:%1;font-size:11px;").arg(color));
 }
-QString configPath(const char* name){char* raw=obs_module_config_path(name);if(!raw)return {};const auto path=QString::fromUtf8(raw);bfree(raw);return path;}
-QString volume(quint64 bytes){
-    const QLocale ru(QLocale::Russian);
-    if(bytes>=1024ULL*1024*1024)return ru.toString(double(bytes)/(1024.0*1024*1024),'f',2)+" ГБ";
-    if(bytes>=1024ULL*1024)return ru.toString(double(bytes)/(1024.0*1024),'f',1)+" МБ";
-    if(bytes>=1024)return ru.toString(double(bytes)/1024.0,'f',1)+" КБ";
-    return ru.toString(qlonglong(bytes))+" Б";
+QString configPath(const char* name){
+#ifdef STREAM_CHAT_PREVIEW
+    return QString::fromUtf8(qgetenv("STREAM_CHAT_PREVIEW_CONFIG"))+"/"+QString::fromUtf8(name);
+#else
+    char* raw=obs_module_config_path(name);if(!raw)return {};const auto path=QString::fromUtf8(raw);bfree(raw);return path;
+#endif
+}
+QString volume(quint64 bytes,bool english=false){
+    const QLocale locale(english?QLocale::English:QLocale::Russian);
+    if(bytes>=1024ULL*1024*1024)return locale.toString(double(bytes)/(1024.0*1024*1024),'f',2)+(english?" GB":" ГБ");
+    if(bytes>=1024ULL*1024)return locale.toString(double(bytes)/(1024.0*1024),'f',1)+(english?" MB":" МБ");
+    if(bytes>=1024)return locale.toString(double(bytes)/1024.0,'f',1)+(english?" KB":" КБ");
+    return locale.toString(qlonglong(bytes))+(english?" B":" Б");
 }
 bool anyStreamingOutput(){
+#ifdef STREAM_CHAT_PREVIEW
+    return false;
+#else
     bool active=obs_frontend_streaming_active();
     obs_enum_outputs([](void* context,obs_output_t* output){
         if((obs_output_get_flags(output)&OBS_OUTPUT_SERVICE)&&obs_output_active(output)){
@@ -169,13 +201,14 @@ bool anyStreamingOutput(){
         return true;
     },&active);
     return active;
+#endif
 }
 class ChatDock final : public QWidget {
 public:
     ChatDock():twitch_(configPath("twitch-account.dat"),this),youtube_(configPath("youtube-account.dat"),this){
         setObjectName("StreamChatRoot");setMinimumWidth(320);setStyleSheet(ChatStyle);
         auto* layout=new QVBoxLayout(this);layout->setContentsMargins(8,8,8,8);layout->setSpacing(7);
-        auto* header=new QHBoxLayout;header->setSpacing(7);header->addWidget(new PlatformBadge("Stream Chat"));auto* title=new QLabel("Stream Chat");title->setObjectName("Title");header->addWidget(title,1);layout->addLayout(header);
+        auto* header=new QHBoxLayout;header->setSpacing(7);header->addWidget(new PlatformBadge("Stream Chat"));auto* title=new QLabel("Stream Chat");title->setObjectName("Title");header->addWidget(title,1);settings_=new QPushButton("⚙");settings_->setObjectName("Settings");settings_->setToolTip("Настройки");settings_->setAccessibleName("Настройки");header->addWidget(settings_);layout->addLayout(header);
 
         auto* twitchCard=card();auto* twitchLayout=new QVBoxLayout(twitchCard);twitchLayout->setContentsMargins(8,6,8,6);twitchLayout->setSpacing(5);
         auto* twitchHead=new QHBoxLayout;twitchHead->setSpacing(6);twitchHead->addWidget(new PlatformBadge("Twitch"));twitchHead->addWidget(sectionTitle("Twitch"));twitchViewers_=new QLabel;twitchViewers_->setObjectName("Hint");twitchViewers_->setToolTip("Смотрят Twitch сейчас");twitchHead->addWidget(twitchViewers_);twitchStatus_=new QLabel;twitchStatus_->setAlignment(Qt::AlignRight|Qt::AlignVCenter);twitchStatus_->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Preferred);twitchHead->addWidget(twitchStatus_,1);login_=new QPushButton("Войти");twitchHead->addWidget(login_);logout_=new QPushButton("×");logout_->setObjectName("Disconnect");logout_->setToolTip("Отключить Twitch");twitchHead->addWidget(logout_);twitchLayout->addLayout(twitchHead);
@@ -188,17 +221,17 @@ public:
         broadcast_=new QComboBox;broadcast_->addItem("Выберите эфир",QString());youtubeLayout->addWidget(broadcast_);layout->addWidget(youtubeCard);
         connect(broadcast_,&QComboBox::currentIndexChanged,this,[this](int index){const auto id=broadcast_->itemData(index).toString();if(!id.isEmpty())youtube_.selectChat(id);});
         connect(&youtube_,&sc::YouTubeChat::broadcasts,this,[this](const QJsonArray& choices){
-            const QSignalBlocker block(broadcast_);broadcast_->clear();broadcast_->addItem("Выберите эфир",QString());
+            const QSignalBlocker block(broadcast_);broadcast_->clear();broadcast_->addItem(english_?"Choose stream":"Выберите эфир",QString());
             for(const auto& value:choices){const auto choice=value.toObject();broadcast_->addItem(choice.value("title").toString(),choice.value("id").toString());}
             if(choices.size()==1)broadcast_->setCurrentIndex(1);
             refresh();
         });
-        auto* chatCard=card();auto* chatLayout=new QVBoxLayout(chatCard);chatLayout->setContentsMargins(8,7,8,8);chatLayout->setSpacing(5);auto* chatHead=new QHBoxLayout;chatHead->addWidget(sectionTitle("Чат"));chatHead->addStretch();totalCount_=new QLabel;totalCount_->setObjectName("Hint");totalCount_->setToolTip("Всего сообщений за этот запуск OBS");chatHead->addWidget(totalCount_);chatLayout->addLayout(chatHead);
+        auto* chatCard=card();auto* chatLayout=new QVBoxLayout(chatCard);chatLayout->setContentsMargins(8,7,8,8);chatLayout->setSpacing(5);auto* chatHead=new QHBoxLayout;chatTitle_=sectionTitle("Чат");chatHead->addWidget(chatTitle_);chatHead->addStretch();totalCount_=new QLabel;totalCount_->setObjectName("Hint");totalCount_->setToolTip("Всего сообщений за этот запуск OBS");chatHead->addWidget(totalCount_);chatLayout->addLayout(chatHead);
         messages_=new QTextEdit;messages_->setReadOnly(true);messages_->setAcceptRichText(false);messages_->setFocusPolicy(Qt::NoFocus);messages_->setTextInteractionFlags(Qt::NoTextInteraction);messages_->setContextMenuPolicy(Qt::NoContextMenu);messages_->setCursor(Qt::ArrowCursor);messages_->document()->setMaximumBlockCount(500);messages_->setPlaceholderText("Здесь появятся сообщения. История хранится только до закрытия OBS.");
         messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/twitch"),messagePlatformIcon("Twitch"));messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/youtube"),messagePlatformIcon("YouTube"));chatLayout->addWidget(messages_,1);
-        auto* targets=new QHBoxLayout;targets->setSpacing(6);auto* recipientHint=new QLabel("Куда отправлять");recipientHint->setObjectName("Hint");targets->addWidget(recipientHint);target_=new PlatformToggle("Twitch");target_->setChecked(true);targets->addWidget(target_);twitchCount_=new QLabel;twitchCount_->setObjectName("Hint");twitchCount_->setToolTip("Сообщения Twitch за этот запуск OBS");targets->addWidget(twitchCount_);youtubeTarget_=new PlatformToggle("YouTube");youtubeTarget_->setChecked(true);targets->addWidget(youtubeTarget_);youtubeCount_=new QLabel;youtubeCount_->setObjectName("Hint");youtubeCount_->setToolTip("Сообщения YouTube за этот запуск OBS");targets->addWidget(youtubeCount_);targets->addStretch();chatLayout->addLayout(targets);layout->addWidget(chatCard,1);
+        auto* targets=new QHBoxLayout;targets->setSpacing(6);recipientHint_=new QLabel("Куда отправлять");recipientHint_->setObjectName("Hint");targets->addWidget(recipientHint_);target_=new PlatformToggle("Twitch");target_->setChecked(true);targets->addWidget(target_);twitchCount_=new QLabel;twitchCount_->setObjectName("Hint");twitchCount_->setToolTip("Сообщения Twitch за этот запуск OBS");targets->addWidget(twitchCount_);youtubeTarget_=new PlatformToggle("YouTube");youtubeTarget_->setChecked(true);targets->addWidget(youtubeTarget_);youtubeCount_=new QLabel;youtubeCount_->setObjectName("Hint");youtubeCount_->setToolTip("Сообщения YouTube за этот запуск OBS");targets->addWidget(youtubeCount_);targets->addStretch();chatLayout->addLayout(targets);layout->addWidget(chatCard,1);
         auto* composerCard=card();auto* composerLayout=new QVBoxLayout(composerCard);composerLayout->setContentsMargins(8,7,8,8);composerLayout->setSpacing(5);auto* composer=new QHBoxLayout;input_=new QLineEdit;input_->setMaxLength(500);input_->setPlaceholderText("Сообщение на стриминговые сервисы");send_=new QPushButton("Отправить");send_->setObjectName("Primary");composer->addWidget(input_,1);composer->addWidget(send_);composerLayout->addLayout(composer);delivery_=new QLabel;delivery_->setObjectName("Hint");delivery_->setWordWrap(true);delivery_->setTextFormat(Qt::PlainText);delivery_->hide();composerLayout->addWidget(delivery_);layout->addWidget(composerCard);
-        auto* usageCard=card();usageCard->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Maximum);auto* usageLayout=new QVBoxLayout(usageCard);usageLayout->setContentsMargins(8,5,8,5);usageLayout->setSpacing(2);usageLayout->addWidget(sectionTitle("Нагрузка плагина"));auto* metrics=new QHBoxLayout;metrics->setSpacing(4);auto* cpuName=new QLabel("CPU");cpuName->setObjectName("Hint");metrics->addWidget(cpuName);cpuValue_=new QLabel("—");metrics->addWidget(cpuValue_);metrics->addStretch();auto* memoryName=new QLabel("Память данных");memoryName->setObjectName("Hint");metrics->addWidget(memoryName);memoryValue_=new QLabel("—");metrics->addWidget(memoryValue_);usageLayout->addLayout(metrics);usageCard->setToolTip("CPU — измеренные участки работы плагина; память — учтённые сообщения и буферы, не вся память OBS");layout->addWidget(usageCard);
+        auto* usageCard=card();usageCard->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Maximum);auto* usageLayout=new QVBoxLayout(usageCard);usageLayout->setContentsMargins(8,5,8,5);usageLayout->setSpacing(2);usageTitle_=sectionTitle("Нагрузка плагина");usageLayout->addWidget(usageTitle_);auto* metrics=new QHBoxLayout;metrics->setSpacing(4);auto* cpuName=new QLabel("CPU");cpuName->setObjectName("Hint");metrics->addWidget(cpuName);cpuValue_=new QLabel("—");metrics->addWidget(cpuValue_);metrics->addStretch();memoryName_=new QLabel("Память данных");memoryName_->setObjectName("Hint");metrics->addWidget(memoryName_);memoryValue_=new QLabel("—");metrics->addWidget(memoryValue_);usageLayout->addLayout(metrics);usageCard_=usageCard;layout->addWidget(usageCard);
         auto* footer=new QVBoxLayout;footer->setSpacing(0);auto* version=new QLabel("developed by OTMOROZOK · v" STREAM_CHAT_VERSION);version->setObjectName("Hint");version->setAlignment(Qt::AlignCenter);footer->addWidget(version);traffic_=new QLabel;traffic_->setAlignment(Qt::AlignCenter);traffic_->setStyleSheet("color:#72e9f4;font-size:10px;");traffic_->setToolTip("Трафик HTTP и WebSocket этого плагина с запуска OBS; без видео и сетевых заголовков");footer->addWidget(traffic_);layout->addLayout(footer);
         batch_.setInterval(20);batch_.setSingleShot(true);trafficTimer_.setInterval(2000);
         connect(&batch_,&QTimer::timeout,this,[this]{flush();});
@@ -209,7 +242,7 @@ public:
         connect(input_,&QLineEdit::textChanged,this,[this]{refresh();});
         connect(&twitch_,&sc::TwitchChat::changed,this,[this]{if(twitch_.ready())code_->hide();refresh();});
         connect(&youtube_,&sc::YouTubeChat::changed,this,[this]{refresh();});
-        connect(&twitch_,&sc::TwitchChat::signInCode,this,[this](const QString& code,const QUrl& url){code_->setText("Код Twitch: "+code.left(64)+"\n"+url.toString());code_->show();});
+        connect(&twitch_,&sc::TwitchChat::signInCode,this,[this](const QString& code,const QUrl& url){code_->setText((english_?"Twitch code: ":"Код Twitch: ")+code.left(64)+"\n"+url.toString());code_->show();});
         connect(&twitch_,&sc::TwitchChat::message,this,[this](const sc::ChatMessage& message){pending_.enqueue(message);while(pending_.size()>500)pending_.dequeue();if(!batch_.isActive())batch_.start();});
         connect(&youtube_,&sc::YouTubeChat::message,this,[this](const sc::ChatMessage& message){pending_.enqueue(message);while(pending_.size()>500)pending_.dequeue();if(!batch_.isActive())batch_.start();});
         connect(&twitch_,&sc::TwitchChat::removeMessage,this,[this](const QString& id){remove([&](const sc::ChatMessage& m){return m.platform=="Twitch"&&m.id==id;});});
@@ -218,15 +251,40 @@ public:
         connect(&twitch_,&sc::TwitchChat::clearChat,this,[this]{remove([](const sc::ChatMessage& m){return m.platform=="Twitch";});});
         connect(&twitch_,&sc::TwitchChat::sent,this,[this](bool confirmed,const QString& reason){completed("Twitch",confirmed,reason);});
         connect(&youtube_,&sc::YouTubeChat::sent,this,[this](bool confirmed,const QString& reason){completed("YouTube",confirmed,reason);});
+        connect(settings_,&QPushButton::clicked,this,[this]{openSettings();});
+        {QSettings saved(configPath("ui.ini"),QSettings::IniFormat);english_=saved.value("language","ru").toString()=="en";}
+        applyLanguage();
         streaming_=anyStreamingOutput();twitch_.setStreamActive(streaming_);youtube_.setStreamActive(streaming_);
         refresh();updateTraffic();updateMetrics();
     }
     void setStreaming(bool active){if(streaming_==active)return;streaming_=active;seenThisStream_=false;twitch_.setStreamActive(active);youtube_.setStreamActive(active);refresh();}
 protected:
     void showEvent(QShowEvent* event)override{QWidget::showEvent(event);setStreaming(anyStreamingOutput());twitch_.setVisible(true);youtube_.setVisible(true);QTimer::singleShot(0,this,[this]{if(isVisible()){twitch_.setVisible(true);youtube_.setVisible(true);refresh();}});trafficTimer_.start();updateTraffic();updateMetrics();if(!pending_.isEmpty())batch_.start();}
-    void hideEvent(QHideEvent* event)override{twitch_.setVisible(false);youtube_.setVisible(false);batch_.stop();trafficTimer_.stop();if(activeSends_)delivery_->setText("Панель скрыта: результат отправки не подтверждён. Автоматического повтора нет.");activeSends_=0;refresh();QWidget::hideEvent(event);}
+    void hideEvent(QHideEvent* event)override{twitch_.setVisible(false);youtube_.setVisible(false);batch_.stop();trafficTimer_.stop();if(activeSends_)delivery_->setText(english_?"Dock hidden: delivery unconfirmed. No automatic retry.":"Панель скрыта: результат отправки не подтверждён. Автоматического повтора нет.");activeSends_=0;refresh();QWidget::hideEvent(event);}
 private:
-    void updateTraffic(){traffic_->setText("Трафик за сеанс · ↑ "+volume(sc::traffic::sent.load(std::memory_order_relaxed))+"  |  ↓ "+volume(sc::traffic::received.load(std::memory_order_relaxed)));}
+    void openSettings(){
+        QDialog dialog(this);dialog.setWindowTitle(english_?"Settings":"Настройки");dialog.setStyleSheet("QDialog{background:#0b131e;color:#dfe8ff;} QLabel{color:#dfe8ff;} QComboBox{color:#dfe8ff;background:#172236;border:1px solid #354863;border-radius:6px;padding:5px;min-width:130px;} QPushButton{color:#dfe8ff;background:#172236;border:1px solid #354863;border-radius:6px;padding:5px 12px;}");
+        auto* layout=new QVBoxLayout(&dialog);auto* line=new QHBoxLayout;auto* label=new QLabel(english_?"Language":"Язык");auto* language=new QComboBox;language->addItem("Русский","ru");language->addItem("English","en");language->setCurrentIndex(english_?1:0);line->addWidget(label);line->addWidget(language);layout->addLayout(line);
+        auto* close=new QPushButton(english_?"Close":"Закрыть");layout->addWidget(close,0,Qt::AlignRight);dialog.setMinimumWidth(230);
+        connect(language,&QComboBox::currentIndexChanged,&dialog,[this,&dialog,label,close,language](int index){english_=index==1;QSettings saved(configPath("ui.ini"),QSettings::IniFormat);saved.setValue("language",english_?"en":"ru");saved.sync();applyLanguage();dialog.setWindowTitle(english_?"Settings":"Настройки");label->setText(english_?"Language":"Язык");close->setText(english_?"Close":"Закрыть");language->setToolTip(english_?"Interface language":"Язык интерфейса");});
+        connect(close,&QPushButton::clicked,&dialog,&QDialog::accept);dialog.exec();
+    }
+    void applyLanguage(){
+        settings_->setToolTip(english_?"Settings":"Настройки");settings_->setAccessibleName(settings_->toolTip());
+        login_->setText(english_?"Sign in":"Войти");googleLogin_->setText(login_->text());
+        logout_->setToolTip(english_?"Disconnect Twitch":"Отключить Twitch");googleLogout_->setToolTip(english_?"Disconnect YouTube":"Отключить YouTube");
+        chatTitle_->setText(english_?"Chat":"Чат");recipientHint_->setText(english_?"Send to":"Куда отправлять");
+        messages_->setPlaceholderText(english_?"Messages appear here. History is kept until OBS closes.":"Здесь появятся сообщения. История хранится только до закрытия OBS.");
+        input_->setPlaceholderText(english_?"Message to streaming platforms":"Сообщение на стриминговые сервисы");send_->setText(english_?"Send":"Отправить");
+        usageTitle_->setText(english_?"Plugin usage":"Нагрузка плагина");memoryName_->setText(english_?"Data memory":"Память данных");
+        usageCard_->setToolTip(english_?"CPU: measured plugin work; memory: tracked messages and buffers, not all OBS memory":"CPU — измеренные участки работы плагина; память — учтённые сообщения и буферы, не вся память OBS");
+        traffic_->setToolTip(english_?"Plugin HTTP and WebSocket traffic since OBS started; excludes video and network headers":"Трафик HTTP и WebSocket этого плагина с запуска OBS; без видео и сетевых заголовков");
+        totalCount_->setToolTip(english_?"Messages during this OBS session":"Всего сообщений за этот запуск OBS");twitchCount_->setToolTip(english_?"Twitch messages during this OBS session":"Сообщения Twitch за этот запуск OBS");youtubeCount_->setToolTip(english_?"YouTube messages during this OBS session":"Сообщения YouTube за этот запуск OBS");
+        target_->setToolTip(english_?"Send to Twitch":"Отправлять в Twitch");target_->setAccessibleName(target_->toolTip());youtubeTarget_->setToolTip(english_?"Send to YouTube":"Отправлять в YouTube");youtubeTarget_->setAccessibleName(youtubeTarget_->toolTip());
+        if(broadcast_->count())broadcast_->setItemText(0,english_?"Choose stream":"Выберите эфир");
+        refresh();updateTraffic();updateMetrics();
+    }
+    void updateTraffic(){traffic_->setText((english_?"Session traffic · ↑ ":"Трафик за сеанс · ↑ ")+volume(sc::traffic::sent.load(std::memory_order_relaxed),english_)+"  |  ↓ "+volume(sc::traffic::received.load(std::memory_order_relaxed),english_));}
     void requestEmote(const QString& id){
         if(id.isEmpty()||emotes_.contains(id)||pendingEmotes_.contains(id)||failedEmotes_.contains(id)||emotes_.size()+pendingEmotes_.size()+failedEmotes_.size()>=64)return;
         QNetworkRequest request(QUrl("https://static-cdn.jtvnw.net/emoticons/v2/"+id+"/static/dark/1.0"));
@@ -249,14 +307,14 @@ private:
         if(usageClock_.isValid()&&usageClock_.nsecsElapsed()>0){
             const double cores=std::max(1u,std::thread::hardware_concurrency());
             const double percent=100.0*double(cpuNow-lastCpuNs_)/double(usageClock_.nsecsElapsed())/cores;
-            cpuValue_->setText(percent<0.01?"<0,01 %":QLocale(QLocale::Russian).toString(percent,'f',2)+" %");
+            cpuValue_->setText(percent<0.01?(english_?"<0.01 %":"<0,01 %"):QLocale(english_?QLocale::English:QLocale::Russian).toString(percent,'f',2)+" %");
         }
         lastCpuNs_=cpuNow;usageClock_.restart();
         quint64 bytes=quint64(messages_->document()->characterCount())*sizeof(QChar);
         auto add=[&bytes](const sc::ChatMessage& m){for(const auto* s:{&m.platform,&m.id,&m.authorId,&m.author,&m.text})bytes+=quint64(s->capacity())*sizeof(QChar);for(const auto& part:m.fragments){bytes+=quint64(part.text.capacity()+part.emoteId.capacity())*sizeof(QChar);}};
         for(const auto& m:history_)add(m);for(const auto& m:pending_)add(m);
         for(auto it=emotes_.cbegin();it!=emotes_.cend();++it)bytes+=quint64(it.value().width())*quint64(it.value().height())*4;
-        memoryValue_->setText(volume(bytes));
+        memoryValue_->setText(volume(bytes,english_));
     }
     void appendMessage(const sc::ChatMessage& message){
         auto text=message.text,author=message.author;text.replace('\n',' ');text.replace('\r',' ');author.replace('\n',' ');author.replace('\r',' ');
@@ -280,12 +338,12 @@ private:
         messages_->ensureCursorVisible();
     }
     void refresh(){
-        paintStatus(twitchStatus_,twitch_.status(),"Twitch",twitch_.ready());paintStatus(youtubeStatus_,youtube_.status(),"YouTube",youtube_.ready());
-        const QLocale ru(QLocale::Russian);
+        paintStatus(twitchStatus_,twitch_.status(),"Twitch",twitch_.ready(),english_);paintStatus(youtubeStatus_,youtube_.status(),"YouTube",youtube_.ready(),english_);
+        const QLocale ru(english_?QLocale::English:QLocale::Russian);
         twitchViewers_->setVisible(streaming_&&twitch_.viewerCount()>=0);
         youtubeViewers_->setVisible(streaming_&&youtube_.viewerCount()>=0);
-        if(twitch_.viewerCount()>=0){twitchViewers_->setText("👥 "+ru.toString(twitch_.viewerCount()));twitchViewers_->setStyleSheet(twitch_.viewerFresh()?"color:#dfe8ff;font-size:11px;":"color:#8ea1c0;font-size:11px;");twitchViewers_->setToolTip(twitch_.viewerFresh()?"Смотрят Twitch сейчас":"Последнее известное число зрителей Twitch");}
-        if(youtube_.viewerCount()>=0){youtubeViewers_->setText("👥 "+ru.toString(youtube_.viewerCount()));youtubeViewers_->setStyleSheet(youtube_.viewerFresh()?"color:#dfe8ff;font-size:11px;":"color:#8ea1c0;font-size:11px;");youtubeViewers_->setToolTip(youtube_.viewerFresh()?"Смотрят YouTube сейчас":"Последнее известное число зрителей YouTube");}
+        if(twitch_.viewerCount()>=0){twitchViewers_->setText("👥 "+ru.toString(twitch_.viewerCount()));twitchViewers_->setStyleSheet(twitch_.viewerFresh()?"color:#dfe8ff;font-size:11px;":"color:#8ea1c0;font-size:11px;");twitchViewers_->setToolTip(twitch_.viewerFresh()?(english_?"Twitch viewers now":"Смотрят Twitch сейчас"):(english_?"Last known Twitch viewer count":"Последнее известное число зрителей Twitch"));}
+        if(youtube_.viewerCount()>=0){youtubeViewers_->setText("👥 "+ru.toString(youtube_.viewerCount()));youtubeViewers_->setStyleSheet(youtube_.viewerFresh()?"color:#dfe8ff;font-size:11px;":"color:#8ea1c0;font-size:11px;");youtubeViewers_->setToolTip(youtube_.viewerFresh()?(english_?"YouTube viewers now":"Смотрят YouTube сейчас"):(english_?"Last known YouTube viewer count":"Последнее известное число зрителей YouTube"));}
         const bool showCounts=streaming_&&seenThisStream_;
         totalCount_->setVisible(showCounts&&(twitchMessages_+youtubeMessages_>0));
         twitchCount_->setVisible(showCounts&&twitchMessages_>0);youtubeCount_->setVisible(showCounts&&youtubeMessages_>0);
@@ -304,13 +362,13 @@ private:
         if(activeSends_||input_->text().trimmed().isEmpty())return;
         const bool tw=target_->isChecked()&&twitch_.ready(),yt=youtubeTarget_->isChecked()&&youtube_.ready();
         if(!tw&&!yt)return;
-        if(yt&&input_->text().size()>200){delivery_->setText("Для YouTube сократите сообщение до 200 символов.");return;}
+        if(yt&&input_->text().size()>200){delivery_->setText(english_?"YouTube messages are limited to 200 characters.":"Для YouTube сократите сообщение до 200 символов.");return;}
         activeSends_=int(tw)+int(yt);allSent_=true;twitchSent_=false;youtubeSent_=false;results_.clear();
-        delivery_->setText("Отправляем в выбранные каналы…");refresh();const auto text=input_->text();
+        delivery_->setText(english_?"Sending to selected channels…":"Отправляем в выбранные каналы…");refresh();const auto text=input_->text();
         if(tw)twitch_.send(text);if(yt)youtube_.send(text);
     }
     void completed(const QString& platform,bool confirmed,const QString& reason){
-        if(!activeSends_)return;allSent_=allSent_&&confirmed;results_.append(reason);
+        if(!activeSends_)return;allSent_=allSent_&&confirmed;results_.append(english_?(platform+(confirmed?": Message sent":": Delivery unconfirmed; no automatic retry")):reason);
         if(platform=="Twitch")twitchSent_=confirmed;else youtubeSent_=confirmed;
         --activeSends_;if(!activeSends_){if(allSent_)input_->clear();else {if(twitchSent_)target_->setChecked(false);if(youtubeSent_)youtubeTarget_->setChecked(false);}}
         delivery_->setText(results_.join('\n'));refresh();
@@ -321,10 +379,10 @@ private:
         pending_.erase(std::remove_if(pending_.begin(),pending_.end(),predicate),pending_.end());
         messages_->clear();for(const auto& message:history_)appendMessage(message);
     }
-    sc::TwitchChat twitch_;sc::YouTubeChat youtube_;QTextEdit* messages_=nullptr;QLabel* twitchStatus_=nullptr;QLabel* youtubeStatus_=nullptr;QLabel* twitchViewers_=nullptr;QLabel* youtubeViewers_=nullptr;QLabel* code_=nullptr;QLabel* delivery_=nullptr;QLabel* totalCount_=nullptr;QLabel* twitchCount_=nullptr;QLabel* youtubeCount_=nullptr;QLabel* traffic_=nullptr;QLabel* cpuValue_=nullptr;QLabel* memoryValue_=nullptr;
+    sc::TwitchChat twitch_;sc::YouTubeChat youtube_;QTextEdit* messages_=nullptr;QLabel* twitchStatus_=nullptr;QLabel* youtubeStatus_=nullptr;QLabel* twitchViewers_=nullptr;QLabel* youtubeViewers_=nullptr;QLabel* code_=nullptr;QLabel* delivery_=nullptr;QLabel* totalCount_=nullptr;QLabel* twitchCount_=nullptr;QLabel* youtubeCount_=nullptr;QLabel* traffic_=nullptr;QLabel* cpuValue_=nullptr;QLabel* memoryValue_=nullptr;QLabel* chatTitle_=nullptr;QLabel* recipientHint_=nullptr;QLabel* usageTitle_=nullptr;QLabel* memoryName_=nullptr;QWidget* usageCard_=nullptr;QPushButton* settings_=nullptr;
     QLineEdit* input_=nullptr;QAbstractButton* target_=nullptr;QPushButton* send_=nullptr;QPushButton* login_=nullptr;QPushButton* logout_=nullptr;
     QAbstractButton* youtubeTarget_=nullptr;QComboBox* broadcast_=nullptr;QPushButton* googleLogin_=nullptr;QPushButton* googleLogout_=nullptr;
-    QQueue<sc::ChatMessage> history_,pending_;QTimer batch_,trafficTimer_;QElapsedTimer usageClock_;QNetworkAccessManager emoteHttp_;QHash<QString,QPixmap> emotes_;QSet<QString> pendingEmotes_,failedEmotes_;std::uint64_t lastCpuNs_=0;int activeSends_=0;bool allSent_=false,twitchSent_=false,youtubeSent_=false;bool streaming_=false,seenThisStream_=false;quint64 twitchMessages_=0,youtubeMessages_=0;QStringList results_;
+    QQueue<sc::ChatMessage> history_,pending_;QTimer batch_,trafficTimer_;QElapsedTimer usageClock_;QNetworkAccessManager emoteHttp_;QHash<QString,QPixmap> emotes_;QSet<QString> pendingEmotes_,failedEmotes_;std::uint64_t lastCpuNs_=0;int activeSends_=0;bool allSent_=false,twitchSent_=false,youtubeSent_=false;bool streaming_=false,seenThisStream_=false,english_=false;quint64 twitchMessages_=0,youtubeMessages_=0;QStringList results_;
 };
 QPointer<ChatDock> dock;QString tlsPath;
 void createDock(){if(dock)return;auto* widget=new ChatDock;if(obs_frontend_add_dock_by_id(DockId,"Stream Chat",widget))dock=widget;else delete widget;}
@@ -342,4 +400,3 @@ bool obs_module_load(void){
     obs_frontend_add_event_callback(onFrontendEvent,nullptr);blog(LOG_INFO,"Stream Chat OBS %s loaded; HTTPS: %s",STREAM_CHAT_VERSION,QSslSocket::supportsSsl()?"available":"unavailable");return true;
 }
 void obs_module_unload(void){obs_frontend_remove_event_callback(onFrontendEvent,nullptr);if(dock)obs_frontend_remove_dock(DockId);dock=nullptr;if(!tlsPath.isEmpty())QCoreApplication::removeLibraryPath(tlsPath);tlsPath.clear();}
-
