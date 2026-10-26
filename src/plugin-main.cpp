@@ -31,6 +31,8 @@
 #include <QIcon>
 #include <QSlider>
 #include <QRegularExpression>
+#include <QGraphicsOpacityEffect>
+#include <QPropertyAnimation>
 #include <QVBoxLayout>
 #include <QHideEvent>
 #include <QShowEvent>
@@ -69,6 +71,7 @@ bool obsLanguageIsEnglish(){
 const char* ChatStyle=R"(
 QWidget#StreamChatRoot { background:#080f18; color:#dfe8ff; font-size:12px; }
 QWidget#Card { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #101925,stop:1 #0b131e); border:1px solid #263244; border-radius:8px; }
+QWidget#Card:hover { border-color:#38516d; }
 QLabel { color:#dfe8ff; background:transparent; }
 QLabel#Title { color:#e7fff4; font-size:17px; font-weight:700; }
 QLabel#Section { color:#edf3ff; font-size:13px; font-weight:700; }
@@ -121,7 +124,7 @@ QIcon settingsIcon(){
 
 class PlatformBadge final : public QWidget {
 public:
-    explicit PlatformBadge(QString platform,QWidget* parent=nullptr):QWidget(parent),platform_(std::move(platform)){setFixedSize(28,28);setAccessibleName(platform_);}
+    explicit PlatformBadge(QString platform,QWidget* parent=nullptr):QWidget(parent),platform_(std::move(platform)){setFixedSize(28,28);setAccessibleName(platform_);setToolTip(platform_);}
 protected:
     void paintEvent(QPaintEvent*)override{
         QPainter p(this);p.setRenderHint(QPainter::Antialiasing);p.scale(width()/32.0,height()/32.0);
@@ -214,9 +217,18 @@ void paintStatus(QLabel* label,const QString& raw,const QString& platform,bool r
     else if(value.contains("ошиб",Qt::CaseInsensitive)||value.contains("отклон",Qt::CaseInsensitive))color="#ff7f88";
     else if(value=="Подключение"||value.contains("подтверд",Qt::CaseInsensitive)||value.contains("заверша",Qt::CaseInsensitive)||value.contains("ищем",Qt::CaseInsensitive)||value.contains("эфир не найден",Qt::CaseInsensitive))color="#ffcd57";
     const QString shown=english?englishStatus(value):value;
+    const bool changed=label->property("statusShown").isValid()&&label->property("statusShown").toString()!=shown;
     if(english){const auto http=raw.indexOf("(HTTP ");label->setToolTip(http<0?shown:shown+" "+raw.mid(http));}
     else label->setToolTip(raw);
     label->setText("● "+shown);label->setStyleSheet(QString("color:%1;font-size:%2px;").arg(color).arg(std::max(9,11*textScale/100)));
+    label->setProperty("statusShown",shown);
+    if(changed&&label->isVisible()){
+        auto* effect=qobject_cast<QGraphicsOpacityEffect*>(label->graphicsEffect());
+        if(!effect){effect=new QGraphicsOpacityEffect(label);label->setGraphicsEffect(effect);}
+        if(auto* prior=effect->findChild<QPropertyAnimation*>()){prior->stop();prior->deleteLater();}
+        auto* fade=new QPropertyAnimation(effect,"opacity",effect);fade->setDuration(170);
+        fade->setStartValue(0.65);fade->setEndValue(1.0);fade->start(QAbstractAnimation::DeleteWhenStopped);
+    }
 }
 QString configPath(const char* name){
 #ifdef STREAM_CHAT_PREVIEW
@@ -250,6 +262,7 @@ class ChatDock final : public QWidget {
 public:
 #ifdef STREAM_CHAT_PREVIEW
     void previewAppend(const sc::ChatMessage& message){history_.enqueue(message);appendMessage(message);}
+    void previewRedraw(){redrawMessages();}
 #endif
     ChatDock():twitch_(configPath("twitch-account.dat"),this),youtube_(configPath("youtube-account.dat"),this){
         {QSettings saved(configPath("ui.ini"),QSettings::IniFormat);textScale_=std::clamp(saved.value("textScale",100).toInt(),80,140);}
@@ -411,7 +424,10 @@ private:
     void updateScrollButton(){scrollBottom_->setVisible(!atBottom()&&unread_>0);scrollBottom_->setText(unread_>0?"↓ "+QString::number(unread_):"↓");}
     void redrawMessages(){
         auto* bar=messages_->verticalScrollBar();const bool bottom=atBottom();const int oldPosition=bar->value();
-        redrawing_=true;messages_->clear();for(const auto& message:history_)appendMessage(message,false);
+        redrawing_=true;messages_->clear();
+        messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/twitch"),messagePlatformIcon("Twitch"));
+        messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/youtube"),messagePlatformIcon("YouTube"));
+        for(const auto& message:history_)appendMessage(message,false);
         bar->setValue(bottom?bar->maximum():oldPosition);redrawing_=false;updateScrollButton();
     }
     void appendMessage(const sc::ChatMessage& message,bool fresh=true){
@@ -445,8 +461,8 @@ private:
         const QLocale ru(english_?QLocale::English:QLocale::Russian);
         twitchViewers_->setVisible(streaming_&&twitch_.viewerCount()>=0);
         youtubeViewers_->setVisible(streaming_&&youtube_.viewerCount()>=0);
-        if(twitch_.viewerCount()>=0){twitchViewers_->setText("👥 "+ru.toString(twitch_.viewerCount()));twitchViewers_->setStyleSheet(QString("color:%1;font-size:%2px;").arg(twitch_.viewerFresh()?"#dfe8ff":"#8ea1c0").arg(std::max(9,11*textScale_/100)));twitchViewers_->setToolTip(twitch_.viewerFresh()?(english_?"Twitch viewers now":"Смотрят Twitch сейчас"):(english_?"Last known Twitch viewer count":"Последнее известное число зрителей Twitch"));}
-        if(youtube_.viewerCount()>=0){youtubeViewers_->setText("👥 "+ru.toString(youtube_.viewerCount()));youtubeViewers_->setStyleSheet(QString("color:%1;font-size:%2px;").arg(youtube_.viewerFresh()?"#dfe8ff":"#8ea1c0").arg(std::max(9,11*textScale_/100)));youtubeViewers_->setToolTip(youtube_.viewerFresh()?(english_?"YouTube viewers now":"Смотрят YouTube сейчас"):(english_?"Last known YouTube viewer count":"Последнее известное число зрителей YouTube"));}
+        if(twitch_.viewerCount()>=0){twitchViewers_->setText("👥 "+ru.toString(twitch_.viewerCount()));twitchViewers_->setStyleSheet(QString("color:%1;font-size:%2px;font-weight:700;").arg(twitch_.viewerFresh()?"#dfe8ff":"#8ea1c0").arg(std::max(10,12*textScale_/100)));twitchViewers_->setToolTip(twitch_.viewerFresh()?(english_?"Twitch viewers now":"Смотрят Twitch сейчас"):(english_?"Last known Twitch viewer count":"Последнее известное число зрителей Twitch"));}
+        if(youtube_.viewerCount()>=0){youtubeViewers_->setText("👥 "+ru.toString(youtube_.viewerCount()));youtubeViewers_->setStyleSheet(QString("color:%1;font-size:%2px;font-weight:700;").arg(youtube_.viewerFresh()?"#dfe8ff":"#8ea1c0").arg(std::max(10,12*textScale_/100)));youtubeViewers_->setToolTip(youtube_.viewerFresh()?(english_?"YouTube viewers now":"Смотрят YouTube сейчас"):(english_?"Last known YouTube viewer count":"Последнее известное число зрителей YouTube"));}
         const bool showCounts=streaming_&&seenThisStream_;
         totalCount_->setVisible(showCounts&&(twitchMessages_+youtubeMessages_>0));
         twitchCount_->setVisible(showCounts&&twitchMessages_>0);youtubeCount_->setVisible(showCounts&&youtubeMessages_>0);

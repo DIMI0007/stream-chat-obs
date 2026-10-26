@@ -1,33 +1,36 @@
 # Stream Chat OBS
 
-**Twitch and YouTube chat in one OBS dock.** The plugin runs locally without a project-operated server. [Русский](../README.md).
+**Twitch and YouTube chats in one OBS dock.** The plugin runs on your computer without a project-operated server. [Русский](../README.md).
 
-![Stream Chat English interface — isolated preview](screenshots/chat-en.png)
+![Stream Chat English interface](screenshots/chat-en.png)
 
-*Version 0.3.9 UI preview from an isolated test host. It shows the interface, not a connection to live accounts.* [Russian interface](screenshots/chat-ru.png).
-
-## Verified status
-
-- The plugin loads in OBS 33 on Windows x64. Twitch sign-in and real incoming messages were checked in OBS.
-- Google browser sign-in was confirmed. YouTube chat reads and sends during a real broadcast still need validation.
-- Version 0.3.9 builds and passes automated tests. Language selection, viewer counts, and automatic stream discovery are implemented and await live broadcast validation.
+*Version 0.3.10 UI preview from an isolated test host; no live channels are connected.* [Russian interface](screenshots/chat-ru.png).
 
 ## Features
 
-- A combined chat with compact platform markers and local message time when the service supplies it. A down button counts new messages while reading older ones.
-- Browser sign-in and Windows-protected local account storage.
-- Automatic YouTube chat discovery after streaming starts.
-- In-stream message and viewer counts. Twitch viewers refresh about every 30 seconds; YouTube about every minute when the API supplies a count.
-- Send to selected connected channels. Both platforms are selected by default.
-- The ⚙ button opens **Auto / Russian / English** language choices and a text size control with a live preview.
+- Read Twitch and YouTube together. Each message has a compact platform marker, subtle color accent, and local time when the service supplies it.
+- Scrolling up holds your place. A down button counts new messages and takes you back to the latest ones.
+- Send text to Twitch, YouTube, or both connected chats. Both destinations are selected by default.
+- YouTube chat discovery starts after the broadcast begins. Viewer counts appear during a stream when the service provides them.
+- Sign in through a browser without copying tokens. Account data stays on this PC and is protected by Windows.
+- Settings include **Auto / Russian / English** and text size with a live preview. Message history is cleared when OBS closes.
+
+## Verified status
+
+- OBS 33 on Windows x64 loads the plugin. Twitch sign-in, real messages, and viewer count were checked during a stream on version 0.3.8.
+- Google browser sign-in was confirmed. Reading and sending YouTube chat during a real broadcast still need validation.
+- Version 0.3.10 is built and tested in CI; its new interface features still need a live OBS check.
 
 ## Install
 
-1. Close OBS.
-2. [Download the artifact from the latest successful build](https://github.com/DIMI0007/stream-chat-obs/actions/workflows/build-windows.yml).
-3. Copy the entire `stream-chat-obs` directory to `C:\ProgramData\obs-studio\plugins\`. Replace the entire directory when updating.
-4. Start OBS and open the **Stream Chat** dock.
+1. Close OBS and [download the latest successful build](https://github.com/DIMI0007/stream-chat-obs/actions/workflows/build-windows.yml).
+2. Copy the entire `stream-chat-obs` folder into `C:\ProgramData\obs-studio\plugins\`. Replace the whole folder when updating.
+3. Start OBS, open the **Stream Chat** dock, and sign in to the services you use.
 
-Tested target: **OBS 33.0.0 on Windows x64**. The archive is currently unsigned. `BUILD_INFO.json` contains the version and source revision.
+Target: **OBS 33, Windows x64**. `BUILD_INFO.json` in the archive identifies the version and source revision. The build is currently unsigned.
+
+## Support development
+
+[DonationAlerts](https://www.donationalerts.com/r/otmopozok) · [DonatePay](https://donatepay.ru/don/OTMOPOZOK)
 
 Developed by [OTMOPOZOK](https://www.youtube.com/channel/UCTAKYR3T2Ud8zZgNShgQfyw/).

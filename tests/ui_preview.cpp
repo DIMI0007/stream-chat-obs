@@ -30,6 +30,8 @@ int main(int argc,char** argv){
         auto* messages=previewDock.findChild<QTextEdit*>();auto* jump=previewDock.findChild<QPushButton*>("ScrollBottom");
         if(!messages||!jump)return 6;
         for(int i=0;i<70;++i){auto next=twitch;next.id="preview-"+QString::number(i+3);previewDock.previewAppend(next);}
+        previewDock.previewRedraw();
+        if(messages->document()->resource(QTextDocument::ImageResource,QUrl("stream-chat://icon/twitch")).value<QPixmap>().isNull())return 9;
         messages->verticalScrollBar()->setValue(0);previewDock.previewAppend(youtube);app.processEvents();
         if(!jump->isVisible()||!jump->text().contains('1'))return 7;
         jump->click();app.processEvents();if(jump->isVisible())return 8;
