@@ -44,6 +44,8 @@ QPushButton:disabled { color:#6c7890; border-color:#273246; }
 QPushButton#Primary { color:#061c20; font-weight:700; background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #51efaa,stop:1 #34cce9); border-color:#7fffd0; }
 QPushButton#Primary:hover { background:#8af9d0; border-color:#c7ffea; }
 QPushButton#Primary:disabled { color:#71879b; background:#1a2b39; border-color:#314251; }
+QPushButton#Disconnect { color:#8ea1c0; background:#111b28; border:1px solid #304057; border-radius:7px; min-width:24px; max-width:24px; min-height:24px; max-height:24px; padding:0; font-size:16px; font-weight:700; }
+QPushButton#Disconnect:hover { color:#ff8d96; background:#2a1820; border-color:#8d4350; }
 QLineEdit,QPlainTextEdit,QComboBox { color:#e7eeff; background:#0c1420; border:1px solid #344865; border-radius:6px; padding:5px; selection-background-color:#316ac4; }
 QLineEdit:focus,QPlainTextEdit:focus,QComboBox:focus { border-color:#776af5; background:#111c2e; }
 QComboBox QAbstractItemView { background:#101a2b; color:#e7eeff; selection-background-color:#26344d; }
@@ -117,14 +119,14 @@ public:
         auto* header=new QHBoxLayout;header->setSpacing(7);header->addWidget(new PlatformBadge("Stream Chat"));auto* title=new QLabel("Stream Chat");title->setObjectName("Title");header->addWidget(title,1);layout->addLayout(header);
 
         auto* twitchCard=card();auto* twitchLayout=new QVBoxLayout(twitchCard);twitchLayout->setContentsMargins(8,7,8,8);twitchLayout->setSpacing(5);
-        auto* twitchHead=new QHBoxLayout;twitchHead->setSpacing(7);twitchHead->addWidget(new PlatformBadge("Twitch"));twitchHead->addWidget(sectionTitle("Twitch"),1);twitchLayout->addLayout(twitchHead);twitchStatus_=new QLabel;twitchStatus_->setWordWrap(true);twitchLayout->addWidget(twitchStatus_);
-        auto* connections=new QHBoxLayout;login_=new QPushButton("Войти");logout_=new QPushButton("Отключить");connections->addWidget(login_);connections->addWidget(logout_);twitchLayout->addLayout(connections);
+        auto* twitchHead=new QHBoxLayout;twitchHead->setSpacing(7);twitchHead->addWidget(new PlatformBadge("Twitch"));twitchHead->addWidget(sectionTitle("Twitch"),1);logout_=new QPushButton("×");logout_->setObjectName("Disconnect");logout_->setToolTip("Отключить Twitch");twitchHead->addWidget(logout_);twitchLayout->addLayout(twitchHead);twitchStatus_=new QLabel;twitchStatus_->setWordWrap(true);twitchLayout->addWidget(twitchStatus_);
+        auto* connections=new QHBoxLayout;login_=new QPushButton("Войти");connections->addWidget(login_);twitchLayout->addLayout(connections);
         connect(login_,&QPushButton::clicked,&twitch_,&sc::TwitchChat::signIn);connect(logout_,&QPushButton::clicked,&twitch_,&sc::TwitchChat::signOut);
         code_=new QLabel;code_->setObjectName("Callout");code_->setTextFormat(Qt::PlainText);code_->setWordWrap(true);code_->setTextInteractionFlags(Qt::TextSelectableByMouse);code_->hide();twitchLayout->addWidget(code_);layout->addWidget(twitchCard);
 
         auto* youtubeCard=card();auto* youtubeLayout=new QVBoxLayout(youtubeCard);youtubeLayout->setContentsMargins(8,7,8,8);youtubeLayout->setSpacing(5);
-        auto* youtubeHead=new QHBoxLayout;youtubeHead->setSpacing(7);youtubeHead->addWidget(new PlatformBadge("YouTube"));youtubeHead->addWidget(sectionTitle("YouTube"),1);youtubeLayout->addLayout(youtubeHead);youtubeStatus_=new QLabel;youtubeStatus_->setWordWrap(true);youtubeLayout->addWidget(youtubeStatus_);
-        auto* googleButtons=new QHBoxLayout;googleLogin_=new QPushButton("Войти");googleLogout_=new QPushButton("Отключить");googleButtons->addWidget(googleLogin_);googleButtons->addWidget(googleLogout_);youtubeLayout->addLayout(googleButtons);
+        auto* youtubeHead=new QHBoxLayout;youtubeHead->setSpacing(7);youtubeHead->addWidget(new PlatformBadge("YouTube"));youtubeHead->addWidget(sectionTitle("YouTube"),1);googleLogout_=new QPushButton("×");googleLogout_->setObjectName("Disconnect");googleLogout_->setToolTip("Отключить YouTube");youtubeHead->addWidget(googleLogout_);youtubeLayout->addLayout(youtubeHead);youtubeStatus_=new QLabel;youtubeStatus_->setWordWrap(true);youtubeLayout->addWidget(youtubeStatus_);
+        auto* googleButtons=new QHBoxLayout;googleLogin_=new QPushButton("Войти");googleButtons->addWidget(googleLogin_);youtubeLayout->addLayout(googleButtons);
         connect(googleLogin_,&QPushButton::clicked,&youtube_,&sc::YouTubeChat::signIn);connect(googleLogout_,&QPushButton::clicked,&youtube_,&sc::YouTubeChat::signOut);
         auto* broadcasts=new QHBoxLayout;broadcast_=new QComboBox;broadcast_->addItem("Эфир не выбран",QString());find_=new QPushButton("Найти эфир");broadcasts->addWidget(broadcast_,1);broadcasts->addWidget(find_);youtubeLayout->addLayout(broadcasts);layout->addWidget(youtubeCard);
         connect(find_,&QPushButton::clicked,&youtube_,&sc::YouTubeChat::discover);
