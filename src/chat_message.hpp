@@ -10,10 +10,10 @@ inline QDateTime parsePlatformTime(QString value){
     if(value.size()>64)return {};
     const auto dot=value.indexOf('.');
     if(dot>=0){
-        int end=dot+1;
+        qsizetype end=dot+1;
         while(end<value.size()&&value[end].isDigit())++end;
         if(end==dot+1)return {};
-        value=value.left(dot+1)+value.mid(dot+1,std::min(3,end-dot-1))+value.mid(end);
+        value=value.left(dot+1)+value.mid(dot+1,std::min(qsizetype(3),end-dot-1))+value.mid(end);
     }
     auto date=QDateTime::fromString(value,Qt::ISODateWithMs);
     if(!date.isValid())date=QDateTime::fromString(value,Qt::ISODate);
