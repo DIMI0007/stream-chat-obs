@@ -18,7 +18,8 @@ int main(int argc,char** argv){
 
     const QByteArray requestBody=request("chat-123","page-456");
     require(requestBody.size()>5&&quint8(requestBody[0])==0,"Request is not an uncompressed gRPC frame");
-    Reader requestReader(requestBody.mid(5));Field field;int parts=0;bool chat=false,page=false;
+    const QByteArray requestPayload=requestBody.mid(5);
+    Reader requestReader(requestPayload);Field field;int parts=0;bool chat=false,page=false;
     while(requestReader.next(field)){
         if(field.number==1&&field.bytes=="chat-123")chat=true;
         if(field.number==99&&field.bytes=="page-456")page=true;
