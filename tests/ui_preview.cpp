@@ -16,9 +16,9 @@ int main(int argc,char** argv){
     qputenv("STREAM_CHAT_PREVIEW_CONFIG",config.toUtf8());
     for(const auto& language:{QString("ru"),QString("en")}){
         {QSettings settings(config+"/ui.ini",QSettings::IniFormat);settings.setValue("language",language);settings.sync();}
-        ChatDock dock;dock.resize(360,740);dock.show();app.processEvents();
-        if(!dock.grab().save(output+"/chat-"+language+".png"))return 5;
-        dock.hide();app.processEvents();
+        ChatDock previewDock;previewDock.resize(360,740);previewDock.show();app.processEvents();
+        if(!previewDock.grab().save(output+"/chat-"+language+".png"))return 5;
+        previewDock.hide();app.processEvents();
     }
     return 0;
 }

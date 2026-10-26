@@ -62,7 +62,7 @@ add_test(NAME secure-loopback-oauth COMMAND stream-chat-oauth-tests)
 set_tests_properties(secure-loopback-oauth PROPERTIES
   ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
 
-add_executable(stream-chat-ui-preview tests/ui_preview.cpp src/twitch_chat.cpp src/youtube_chat.cpp)
+add_executable(stream-chat-ui-preview tests/ui_preview.cpp src/twitch_chat.cpp src/youtube_chat.cpp src/oauth_loopback.hpp)
 target_compile_definitions(stream-chat-ui-preview PRIVATE STREAM_CHAT_PREVIEW STREAM_CHAT_VERSION="${PROJECT_VERSION}" WIN32_LEAN_AND_MEAN NOMINMAX)
 target_link_libraries(stream-chat-ui-preview PRIVATE OBS::libobs OBS::obs-frontend-api Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets crypt32)
 if(MSVC)
