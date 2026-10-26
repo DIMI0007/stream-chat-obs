@@ -1,4 +1,6 @@
 #include "twitch_chat.hpp"
+#include "traffic.hpp"
+#include "usage.hpp"
 #include <QNetworkRequest>
 #include <QUrlQuery>
 #include <QJsonArray>
@@ -27,12 +29,13 @@ void TwitchChat::request(const QUrl& url,const QByteArray& method,const QByteArr
     req.setHeader(QNetworkRequest::UserAgentHeader,"StreamChatOBS/0.3");
     if(!type.isEmpty())req.setHeader(QNetworkRequest::ContentTypeHeader,type);
     if(auth){const QString scheme=url.host()=="id.twitch.tv"&&url.path()=="/oauth2/validate"?"OAuth ":"Bearer ";req.setRawHeader("Authorization",(scheme+tokens_.value("access_token").toString()).toUtf8());req.setRawHeader("Client-Id",clientId.toUtf8());}
-    auto* r=method=="GET"?http_.get(req):http_.sendCustomRequest(req,method,body);replies_.insert(r);
+    traffic::addSent(body.size());auto* r=method=="GET"?http_.get(req):http_.sendCustomRequest(req,method,body);replies_.insert(r);
     const auto generation=generation_;
     connect(r,&QNetworkReply::readyRead,r,[r]{if(r->bytesAvailable()>1048576)r->abort();});
     connect(r,&QNetworkReply::finished,this,[this,r,generation,done=std::move(done)]{
+        CpuScope cpu;
         replies_.remove(r);const int status=r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        const auto data=QJsonDocument::fromJson(r->readAll()).object();r->deleteLater();
+        const auto payload=r->readAll();traffic::addReceived(payload.size());const auto data=QJsonDocument::fromJson(payload).object();r->deleteLater();
         if(generation==generation_)done(status,data);
     });
 }
@@ -123,7 +126,8 @@ void TwitchChat::openSocket(const QUrl& url,bool migration){
     watchdog_.start(15000);ws->open(url);
 }
 void TwitchChat::receive(QWebSocket* ws,const QString& raw,bool migration){
-    const auto packet=QJsonDocument::fromJson(raw.toUtf8()).object();const auto metadata=packet.value("metadata").toObject();
+    CpuScope cpu;
+    const auto bytes=raw.toUtf8();traffic::addReceived(bytes.size());const auto packet=QJsonDocument::fromJson(bytes).object();const auto metadata=packet.value("metadata").toObject();
     const auto type=metadata.value("message_type").toString();const auto payload=packet.value("payload").toObject();
     if(type=="session_welcome"){
         const auto session=payload.value("session").toObject();if(session.value("id").toString().isEmpty()){retry();return;}
@@ -144,7 +148,22 @@ void TwitchChat::receive(QWebSocket* ws,const QString& raw,bool migration){
     seen_.insert(id);seenOrder_.enqueue(id);while(seenOrder_.size()>1000)seen_.remove(seenOrder_.dequeue());
     const auto event=payload.value("event").toObject();const auto subscription=payload.value("subscription").toObject().value("type").toString();
     if(subscription=="channel.chat.message"){
-        const ChatMessage message{"Twitch",event.value("message_id").toString(),event.value("chatter_user_id").toString(),event.value("chatter_user_name").toString().left(100),event.value("message").toObject().value("text").toString().left(5000)};
+        const auto body=event.value("message").toObject();
+        ChatMessage message{"Twitch",event.value("message_id").toString(),event.value("chatter_user_id").toString(),event.value("chatter_user_name").toString().left(100),body.value("text").toString().left(5000)};
+        int remaining=5000;
+        for(const auto& item:body.value("fragments").toArray()){
+            if(message.fragments.size()>=100||remaining<=0)break;
+            const auto fragment=item.toObject();const auto part=fragment.value("text").toString().left(remaining);remaining-=part.size();
+            QString emoteId;
+            if(fragment.value("type").toString()=="emote"){
+                const auto candidate=fragment.value("emote").toObject().value("id").toString();
+                if(!candidate.isEmpty()&&candidate.size()<=64){
+                    bool valid=true;for(const auto ch:candidate)if(!ch.isLetterOrNumber()&&ch!='-'&&ch!='_'){valid=false;break;}
+                    if(valid)emoteId=candidate;
+                }
+            }
+            message.fragments.append({part,emoteId});
+        }
         if(!message.id.isEmpty())Q_EMIT this->message(message);
     } else if(subscription=="channel.chat.message_delete")Q_EMIT removeMessage(event.value("message_id").toString());
     else if(subscription=="channel.chat.clear_user_messages")Q_EMIT clearAuthor(event.value("target_user_id").toString());
@@ -180,4 +199,3 @@ void TwitchChat::send(const QString& text){
     });
 }
 }
-

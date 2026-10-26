@@ -1,4 +1,6 @@
 #include "youtube_chat.hpp"
+#include "traffic.hpp"
+#include "usage.hpp"
 #include <obs-module.h>
 #include <util/bmem.h>
 #include <QFile>
@@ -59,11 +61,12 @@ void YouTubeChat::request(const QUrl& url,const QByteArray& method,const QByteAr
     QNetworkRequest req(url);req.setTransferTimeout(15000);req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);
     if(auth)req.setRawHeader("Authorization",("Bearer "+tokens_.value("access_token").toString()).toUtf8());
     req.setHeader(QNetworkRequest::ContentTypeHeader,url.host()=="oauth2.googleapis.com"?"application/x-www-form-urlencoded":"application/json");
-    auto* reply=method=="GET"?http_.get(req):http_.post(req,body);replies_.insert(reply);const auto generation=generation_;
+    traffic::addSent(body.size());auto* reply=method=="GET"?http_.get(req):http_.post(req,body);replies_.insert(reply);const auto generation=generation_;
     connect(reply,&QNetworkReply::readyRead,reply,[reply]{if(reply->bytesAvailable()>1048576)reply->abort();});
     connect(reply,&QNetworkReply::finished,this,[this,reply,generation,callback=std::move(callback)]{
+        CpuScope cpu;
         replies_.remove(reply);const int http=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        const auto data=QJsonDocument::fromJson(reply->readAll()).object();reply->deleteLater();if(generation==generation_)callback(http,data);
+        const auto payload=reply->readAll();traffic::addReceived(payload.size());const auto data=QJsonDocument::fromJson(payload).object();reply->deleteLater();if(generation==generation_)callback(http,data);
     });
 }
 void YouTubeChat::stopStream(){if(stream_){auto reply=stream_;stream_=nullptr;reply->disconnect(this);reply->abort();reply->deleteLater();}frames_.clear();ready_=false;}
@@ -141,7 +144,7 @@ void YouTubeChat::openStream(){
     req.setAttribute(QNetworkRequest::Http2AllowedAttribute,true);req.setAttribute(QNetworkRequest::Http2DirectAttribute,true);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);
     req.setRawHeader("Authorization",("Bearer "+tokens_.value("access_token").toString()).toUtf8());req.setRawHeader("Content-Type","application/grpc");req.setRawHeader("TE","trailers");req.setRawHeader("grpc-accept-encoding","identity");
-    auto* reply=http_.post(req,youtube_wire::request(chatId_,pageToken_));stream_=reply;reply->setReadBufferSize(65536);
+    const auto body=youtube_wire::request(chatId_,pageToken_);traffic::addSent(body.size());auto* reply=http_.post(req,body);stream_=reply;reply->setReadBufferSize(65536);
     connect(reply,&QNetworkReply::readyRead,this,&YouTubeChat::receive);
     connect(reply,&QNetworkReply::finished,this,[this,reply]{
         if(stream_!=reply){reply->deleteLater();return;}
@@ -156,11 +159,13 @@ void YouTubeChat::openStream(){
     QTimer::singleShot(20000,this,[this,expected]{if(expected&&stream_==expected&&!ready_){stopStream();retry();}});
 }
 void YouTubeChat::receive(){
+    CpuScope cpu;
     if(!stream_)return;
-    if(stream_->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt()!=200){stream_->readAll();return;}
+    if(stream_->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt()!=200){traffic::addReceived(stream_->readAll().size());return;}
     while(stream_&&stream_->bytesAvailable()){
         QVector<QByteArray> complete;
-        if(!frames_.append(stream_->read(65536),complete)){stopStream();setStatus("YouTube: неподдерживаемый или слишком большой ответ потока");Q_EMIT changed();return;}
+        const auto bytes=stream_->read(65536);traffic::addReceived(bytes.size());
+        if(!frames_.append(bytes,complete)){stopStream();setStatus("YouTube: неподдерживаемый или слишком большой ответ потока");Q_EMIT changed();return;}
         for(const auto& payload:complete){
             youtube_wire::Batch batch;if(!youtube_wire::decode(payload,batch)){stopStream();setStatus("YouTube: некорректный ответ потока");Q_EMIT changed();return;}
             if(!batch.nextPage.isEmpty())pageToken_=batch.nextPage;

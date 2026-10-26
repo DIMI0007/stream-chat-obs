@@ -24,9 +24,11 @@ This is an **alpha build**, not a completed public release. Passing CI does not 
 
 ## Lightweight operation
 
-The dock uses native Qt widgets, with no embedded browser UI. History is limited to 500 messages and remains in memory. Message counts also remain in memory and reset when OBS closes. Small batches update the view; remote avatars and images are not downloaded. Hidden docks stop network connections and timers.
+The dock uses native Qt widgets, with no embedded browser UI. History is limited to 500 messages and remains in memory. Message counts also remain in memory and reset when OBS closes. Small batches update the view; Twitch emotes appearing in messages are loaded on demand from Twitch's official CDN, with at most 64 icons cached. Avatars are not downloaded. Hidden docks stop network connections and timers.
 
 Twitch uses EventSub WebSockets. YouTube uses the official HTTP/2 streaming API. Stream discovery starts 10 seconds after OBS starts streaming and repeats every 10 seconds only until a chat is found. Message sends with uncertain outcomes are never automatically repeated. Accounts are stored locally with Windows DPAPI protection, and user tokens are never used in CI.
+
+The compact usage card shows instrumented plugin CPU work and an estimate of retained chat data. Session HTTP/WS traffic appears below the version footer; it excludes video traffic and network headers.
 
 ## Install or update
 
@@ -55,6 +57,8 @@ Click **Sign in** in the YouTube card and approve access in the system browser. 
 The plugin requests `youtube.force-ssl`, which is required to read and send chat messages. The authorization code returns to a temporary `127.0.0.1` listener, and Windows DPAPI protects the saved tokens. No project-operated authorization server is used.
 
 Google OAuth remains in Testing. Until the application completes public verification, only configured test users can sign in. The project's shared API quota also applies.
+
+Ordinary YouTube Unicode emoji remain visible in message text. The official API does not provide image URLs for platform emotes in ordinary text messages, so unverified image sources are not used.
 
 ## Diagnostics
 
