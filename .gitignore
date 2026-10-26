@@ -13,3 +13,4 @@
 *.token
 *.secret
 oauth*.json
+google-oauth.json

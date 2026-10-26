@@ -26,9 +26,13 @@ jobs:
         run: ctest --test-dir build_x64 -C RelWithDebInfo --output-on-failure
       - name: Stage plugin package
         shell: pwsh
+        env:
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
         run: |
           cmake --install build_x64 --config RelWithDebInfo --prefix package
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ([string]::IsNullOrWhiteSpace($env:GOOGLE_OAUTH_CLIENT_SECRET)) { throw 'Google OAuth client secret is not configured' }
+          [ordered]@{client_id='398266429510-m38h7aklj8s3r123fqmc64h33cdbmh3j.apps.googleusercontent.com';client_secret=$env:GOOGLE_OAUTH_CLIENT_SECRET}|ConvertTo-Json -Compress|Set-Content package/stream-chat-obs/data/google-oauth.json -Encoding utf8
           if (!(Test-Path package/stream-chat-obs/bin/64bit/stream-chat-obs.dll)) { throw 'Plugin DLL missing' }
           if (!(Test-Path package/stream-chat-obs/bin/64bit/Qt6WebSockets.dll)) { throw 'WebSocket runtime missing' }
           if (!(Test-Path package/stream-chat-obs/data/qt-plugins/tls/qschannelbackend.dll)) { throw 'TLS backend missing' }
@@ -39,4 +43,3 @@ jobs:
           name: StreamChatOBS-OBS33-Windows-x64
           path: package/
           if-no-files-found: error
-

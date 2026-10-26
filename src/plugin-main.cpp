@@ -85,20 +85,19 @@ private: QString platform_;
 class PlatformToggle final : public QCheckBox {
 public:
     explicit PlatformToggle(QString platform,QWidget* parent=nullptr):QCheckBox(parent),platform_(std::move(platform)){
-        setFixedSize(46,26);setCursor(Qt::PointingHandCursor);setAccessibleName(platform_);setToolTip("Отправлять в "+platform_);
+        setFixedSize(34,32);setCursor(Qt::PointingHandCursor);setAccessibleName(platform_);setToolTip("Отправлять в "+platform_);
     }
 protected:
     bool hitButton(const QPoint& point)const override{return rect().contains(point);}
     void paintEvent(QPaintEvent*)override{
         QPainter p(this);p.setRenderHint(QPainter::Antialiasing);p.setOpacity(isEnabled()?1.0:0.45);
-        p.setPen(QPen(isChecked()?QColor("#1f8062"):QColor("#34465d"),1));p.setBrush(isChecked()?QColor("#102c29"):QColor("#121b27"));p.drawRoundedRect(rect().adjusted(1,1,-1,-1),7,7);
-        const QColor brand=platform_=="YouTube"?QColor("#ff1538"):QColor("#9146ff");p.setPen(Qt::NoPen);p.setBrush(brand);p.drawRoundedRect(QRectF(5,4,22,18),5,5);p.setBrush(Qt::white);
+        p.setPen(QPen(isChecked()?QColor("#00cf84"):QColor("#34465d"),isChecked()?2:1));p.setBrush(isChecked()?QColor("#102c29"):QColor("#121b27"));p.drawRoundedRect(rect().adjusted(1,1,-1,-1),7,7);
+        const QColor brand=platform_=="YouTube"?QColor("#ff1538"):QColor("#9146ff");p.setPen(Qt::NoPen);p.setBrush(brand);p.drawRoundedRect(QRectF(5,4,24,24),6,6);p.setBrush(Qt::white);
         if(platform_=="YouTube"){
-            QPainterPath play;play.moveTo(13,8);play.lineTo(21,13);play.lineTo(13,18);play.closeSubpath();p.drawPath(play);
+            p.drawRoundedRect(QRectF(8,10,18,12),4,4);p.setBrush(brand);QPainterPath play;play.moveTo(15,12);play.lineTo(21,16);play.lineTo(15,20);play.closeSubpath();p.drawPath(play);
         }else{
-            QPainterPath bubble;bubble.moveTo(10,7);bubble.lineTo(23,7);bubble.lineTo(23,17);bubble.lineTo(19,21);bubble.lineTo(15,21);bubble.lineTo(12,23);bubble.lineTo(12,20);bubble.lineTo(10,20);bubble.closeSubpath();p.drawPath(bubble);p.setPen(QPen(brand,1.5));p.drawLine(16,10,16,16);p.drawLine(20,10,20,16);
+            QPainterPath bubble;bubble.moveTo(9,8);bubble.lineTo(26,8);bubble.lineTo(26,21);bubble.lineTo(21,26);bubble.lineTo(16,26);bubble.lineTo(12,29);bubble.lineTo(12,25);bubble.lineTo(9,25);bubble.closeSubpath();p.drawPath(bubble);p.setPen(QPen(brand,2));p.drawLine(16,12,16,20);p.drawLine(22,12,22,20);
         }
-        p.setPen(Qt::NoPen);p.setBrush(isChecked()?QColor("#00df8c"):QColor("#65748d"));p.drawEllipse(QPointF(36,13),4,4);
         if(hasFocus()){p.setBrush(Qt::NoBrush);p.setPen(QPen(QColor("#8a79ff"),1,Qt::DotLine));p.drawRoundedRect(rect().adjusted(0,0,-1,-1),7,7);}
     }
 private: QString platform_;
@@ -154,7 +153,7 @@ public:
         auto* chatCard=card();auto* chatLayout=new QVBoxLayout(chatCard);chatLayout->setContentsMargins(8,7,8,8);chatLayout->setSpacing(5);chatLayout->addWidget(sectionTitle("Чат"));
         messages_=new QTextEdit;messages_->setReadOnly(true);messages_->setAcceptRichText(false);messages_->document()->setMaximumBlockCount(500);messages_->setPlaceholderText("Здесь появятся сообщения. История хранится только до закрытия OBS.");
         messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/twitch"),messagePlatformIcon("Twitch"));messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/youtube"),messagePlatformIcon("YouTube"));chatLayout->addWidget(messages_,1);
-        auto* targets=new QHBoxLayout;auto* recipientHint=new QLabel("Куда отправлять");recipientHint->setObjectName("Hint");targets->addWidget(recipientHint);targets->addStretch();target_=new PlatformToggle("Twitch");target_->setChecked(true);targets->addWidget(target_);youtubeTarget_=new PlatformToggle("YouTube");targets->addWidget(youtubeTarget_);chatLayout->addLayout(targets);layout->addWidget(chatCard,1);
+        auto* targets=new QHBoxLayout;targets->setSpacing(6);auto* recipientHint=new QLabel("Куда отправлять");recipientHint->setObjectName("Hint");targets->addWidget(recipientHint);target_=new PlatformToggle("Twitch");target_->setChecked(true);targets->addWidget(target_);youtubeTarget_=new PlatformToggle("YouTube");targets->addWidget(youtubeTarget_);targets->addStretch();chatLayout->addLayout(targets);layout->addWidget(chatCard,1);
         auto* composerCard=card();auto* composerLayout=new QVBoxLayout(composerCard);composerLayout->setContentsMargins(8,7,8,8);composerLayout->setSpacing(5);auto* composer=new QHBoxLayout;input_=new QLineEdit;input_->setMaxLength(500);input_->setPlaceholderText("Сообщение в выбранные каналы");send_=new QPushButton("Отправить");send_->setObjectName("Primary");composer->addWidget(input_,1);composer->addWidget(send_);composerLayout->addLayout(composer);delivery_=new QLabel;delivery_->setObjectName("Hint");delivery_->setWordWrap(true);delivery_->setTextFormat(Qt::PlainText);delivery_->hide();composerLayout->addWidget(delivery_);layout->addWidget(composerCard);
         auto* version=new QLabel("developed by OTMOROZOK · v" STREAM_CHAT_VERSION);version->setObjectName("Hint");version->setAlignment(Qt::AlignCenter);layout->addWidget(version);
         batch_.setInterval(20);batch_.setSingleShot(true);
@@ -237,4 +236,3 @@ bool obs_module_load(void){
     obs_frontend_add_event_callback(onFrontendEvent,nullptr);blog(LOG_INFO,"Stream Chat OBS %s loaded; HTTPS: %s",STREAM_CHAT_VERSION,QSslSocket::supportsSsl()?"available":"unavailable");return true;
 }
 void obs_module_unload(void){obs_frontend_remove_event_callback(onFrontendEvent,nullptr);if(dock)obs_frontend_remove_dock(DockId);dock=nullptr;if(!tlsPath.isEmpty())QCoreApplication::removeLibraryPath(tlsPath);tlsPath.clear();}
-
