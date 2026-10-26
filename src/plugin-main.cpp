@@ -32,6 +32,7 @@
 #include <QNetworkRequest>
 #include <QHash>
 #include <QSet>
+#include <QPixmap>
 #include <QSslSocket>
 #include <QPointer>
 #include <QPainter>
@@ -215,7 +216,7 @@ protected:
     void showEvent(QShowEvent* event)override{QWidget::showEvent(event);twitch_.setVisible(true);youtube_.setVisible(true);trafficTimer_.start();updateTraffic();updateMetrics();if(!pending_.isEmpty())batch_.start();}
     void hideEvent(QHideEvent* event)override{twitch_.setVisible(false);youtube_.setVisible(false);batch_.stop();trafficTimer_.stop();if(activeSends_)delivery_->setText("Панель скрыта: результат отправки не подтверждён. Автоматического повтора нет.");activeSends_=0;refresh();QWidget::hideEvent(event);}
 private:
-    void updateTraffic(){traffic_->setText("↑ "+volume(sc::traffic::sent.load(std::memory_order_relaxed))+"  |  ↓ "+volume(sc::traffic::received.load(std::memory_order_relaxed)));}
+    void updateTraffic(){traffic_->setText("Трафик за сеанс · ↑ "+volume(sc::traffic::sent.load(std::memory_order_relaxed))+"  |  ↓ "+volume(sc::traffic::received.load(std::memory_order_relaxed)));}
     void requestEmote(const QString& id){
         if(id.isEmpty()||emotes_.contains(id)||pendingEmotes_.contains(id)||failedEmotes_.contains(id)||emotes_.size()+pendingEmotes_.size()+failedEmotes_.size()>=64)return;
         QNetworkRequest request(QUrl("https://static-cdn.jtvnw.net/emoticons/v2/"+id+"/static/dark/1.0"));

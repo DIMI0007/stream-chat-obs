@@ -25,6 +25,8 @@ add_library(${CMAKE_PROJECT_NAME} MODULE
   src/chat_message.hpp
   src/oauth_loopback.hpp
   src/secure_store.hpp
+  src/traffic.hpp
+  src/usage.hpp
   src/twitch_chat.cpp
   src/twitch_chat.hpp
   src/youtube_chat.cpp
@@ -59,4 +61,3 @@ target_link_libraries(stream-chat-oauth-tests PRIVATE Qt6::Core Qt6::Network)
 add_test(NAME secure-loopback-oauth COMMAND stream-chat-oauth-tests)
 set_tests_properties(secure-loopback-oauth PROPERTIES
   ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
-
