@@ -160,6 +160,16 @@ QString volume(quint64 bytes){
     if(bytes>=1024)return ru.toString(double(bytes)/1024.0,'f',1)+" КБ";
     return ru.toString(qlonglong(bytes))+" Б";
 }
+bool anyStreamingOutput(){
+    bool active=obs_frontend_streaming_active();
+    obs_enum_outputs([](void* context,obs_output_t* output){
+        if((obs_output_get_flags(output)&OBS_OUTPUT_SERVICE)&&obs_output_active(output)){
+            *static_cast<bool*>(context)=true;return false;
+        }
+        return true;
+    },&active);
+    return active;
+}
 class ChatDock final : public QWidget {
 public:
     ChatDock():twitch_(configPath("twitch-account.dat"),this),youtube_(configPath("youtube-account.dat"),this){
@@ -192,7 +202,7 @@ public:
         auto* footer=new QVBoxLayout;footer->setSpacing(0);auto* version=new QLabel("developed by OTMOROZOK · v" STREAM_CHAT_VERSION);version->setObjectName("Hint");version->setAlignment(Qt::AlignCenter);footer->addWidget(version);traffic_=new QLabel;traffic_->setAlignment(Qt::AlignCenter);traffic_->setStyleSheet("color:#72e9f4;font-size:10px;");traffic_->setToolTip("Трафик HTTP и WebSocket этого плагина с запуска OBS; без видео и сетевых заголовков");footer->addWidget(traffic_);layout->addLayout(footer);
         batch_.setInterval(20);batch_.setSingleShot(true);trafficTimer_.setInterval(2000);
         connect(&batch_,&QTimer::timeout,this,[this]{flush();});
-        connect(&trafficTimer_,&QTimer::timeout,this,[this]{updateTraffic();updateMetrics();});
+        connect(&trafficTimer_,&QTimer::timeout,this,[this]{setStreaming(anyStreamingOutput());updateTraffic();updateMetrics();});
         connect(send_,&QPushButton::clicked,this,[this]{send();});connect(input_,&QLineEdit::returnPressed,this,[this]{send();});
         connect(target_,&QAbstractButton::toggled,this,[this]{refresh();});
         connect(youtubeTarget_,&QAbstractButton::toggled,this,[this]{refresh();});
@@ -208,12 +218,12 @@ public:
         connect(&twitch_,&sc::TwitchChat::clearChat,this,[this]{remove([](const sc::ChatMessage& m){return m.platform=="Twitch";});});
         connect(&twitch_,&sc::TwitchChat::sent,this,[this](bool confirmed,const QString& reason){completed("Twitch",confirmed,reason);});
         connect(&youtube_,&sc::YouTubeChat::sent,this,[this](bool confirmed,const QString& reason){completed("YouTube",confirmed,reason);});
-        streaming_=obs_frontend_streaming_active();twitch_.setStreamActive(streaming_);youtube_.setStreamActive(streaming_);
+        streaming_=anyStreamingOutput();twitch_.setStreamActive(streaming_);youtube_.setStreamActive(streaming_);
         refresh();updateTraffic();updateMetrics();
     }
     void setStreaming(bool active){if(streaming_==active)return;streaming_=active;seenThisStream_=false;twitch_.setStreamActive(active);youtube_.setStreamActive(active);refresh();}
 protected:
-    void showEvent(QShowEvent* event)override{QWidget::showEvent(event);twitch_.setVisible(true);youtube_.setVisible(true);QTimer::singleShot(0,this,[this]{if(isVisible()){twitch_.setVisible(true);youtube_.setVisible(true);refresh();}});trafficTimer_.start();updateTraffic();updateMetrics();if(!pending_.isEmpty())batch_.start();}
+    void showEvent(QShowEvent* event)override{QWidget::showEvent(event);setStreaming(anyStreamingOutput());twitch_.setVisible(true);youtube_.setVisible(true);QTimer::singleShot(0,this,[this]{if(isVisible()){twitch_.setVisible(true);youtube_.setVisible(true);refresh();}});trafficTimer_.start();updateTraffic();updateMetrics();if(!pending_.isEmpty())batch_.start();}
     void hideEvent(QHideEvent* event)override{twitch_.setVisible(false);youtube_.setVisible(false);batch_.stop();trafficTimer_.stop();if(activeSends_)delivery_->setText("Панель скрыта: результат отправки не подтверждён. Автоматического повтора нет.");activeSends_=0;refresh();QWidget::hideEvent(event);}
 private:
     void updateTraffic(){traffic_->setText("Трафик за сеанс · ↑ "+volume(sc::traffic::sent.load(std::memory_order_relaxed))+"  |  ↓ "+volume(sc::traffic::received.load(std::memory_order_relaxed)));}
@@ -321,8 +331,8 @@ void createDock(){if(dock)return;auto* widget=new ChatDock;if(obs_frontend_add_d
 void onFrontendEvent(enum obs_frontend_event event,void*){
     if(event==OBS_FRONTEND_EVENT_FINISHED_LOADING){createDock();return;}
     if(dock&&(event==OBS_FRONTEND_EVENT_STREAMING_STARTED||event==OBS_FRONTEND_EVENT_STREAMING_STOPPED)){
-        const QPointer<ChatDock> current=dock;const bool active=event==OBS_FRONTEND_EVENT_STREAMING_STARTED;
-        QMetaObject::invokeMethod(current.data(),[current,active]{if(current)current->setStreaming(active);},Qt::QueuedConnection);
+        const QPointer<ChatDock> current=dock;
+        QMetaObject::invokeMethod(current.data(),[current]{if(current)current->setStreaming(anyStreamingOutput());},Qt::QueuedConnection);
     }
 }
 }

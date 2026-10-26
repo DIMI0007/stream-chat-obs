@@ -67,6 +67,7 @@ void TwitchChat::pollViewers(){
     viewerRequest_=true;QUrl url("https://api.twitch.tv/helix/streams");QUrlQuery query;query.addQueryItem("user_id",userId_);url.setQuery(query);
     request(url,"GET",{}, {},true,[this](int http,const QJsonObject& data){
         viewerRequest_=false;
+        if(!streamActive_)return;
         if(http==401){refresh();return;}
         if(http==429){viewerTimer_.setInterval(120000);Q_EMIT changed();return;}
         if(http!=200){Q_EMIT changed();return;}
