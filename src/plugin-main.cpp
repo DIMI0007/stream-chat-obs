@@ -208,7 +208,7 @@ QString englishStatus(const QString& value){
     if(value.contains("отключён",Qt::CaseInsensitive))return "Disconnected";
     return "Connecting";
 }
-void paintStatus(QLabel* label,const QString& raw,const QString& platform,bool ready,bool english){
+void paintStatus(QLabel* label,const QString& raw,const QString& platform,bool ready,bool english,int textScale){
     const QString value=compactStatus(raw,platform);QString color="#8ea1c0";
     if(ready)color="#00df8c";
     else if(value.contains("ошиб",Qt::CaseInsensitive)||value.contains("отклон",Qt::CaseInsensitive))color="#ff7f88";
@@ -216,7 +216,7 @@ void paintStatus(QLabel* label,const QString& raw,const QString& platform,bool r
     const QString shown=english?englishStatus(value):value;
     if(english){const auto http=raw.indexOf("(HTTP ");label->setToolTip(http<0?shown:shown+" "+raw.mid(http));}
     else label->setToolTip(raw);
-    label->setText("● "+shown);label->setStyleSheet(QString("color:%1;font-size:11px;").arg(color));
+    label->setText("● "+shown);label->setStyleSheet(QString("color:%1;font-size:%2px;").arg(color).arg(std::max(9,11*textScale/100)));
 }
 QString configPath(const char* name){
 #ifdef STREAM_CHAT_PREVIEW
@@ -279,7 +279,7 @@ public:
         auto* targets=new QHBoxLayout;targets->setSpacing(6);recipientHint_=new QLabel("Куда отправлять");recipientHint_->setObjectName("Hint");targets->addWidget(recipientHint_);target_=new PlatformToggle("Twitch");target_->setChecked(true);targets->addWidget(target_);twitchCount_=new QLabel;twitchCount_->setObjectName("Hint");twitchCount_->setToolTip("Сообщения Twitch за этот запуск OBS");targets->addWidget(twitchCount_);youtubeTarget_=new PlatformToggle("YouTube");youtubeTarget_->setChecked(true);targets->addWidget(youtubeTarget_);youtubeCount_=new QLabel;youtubeCount_->setObjectName("Hint");youtubeCount_->setToolTip("Сообщения YouTube за этот запуск OBS");targets->addWidget(youtubeCount_);targets->addStretch();chatLayout->addLayout(targets);layout->addWidget(chatCard,1);
         auto* composerCard=card();auto* composerLayout=new QVBoxLayout(composerCard);composerLayout->setContentsMargins(8,7,8,8);composerLayout->setSpacing(5);auto* composer=new QHBoxLayout;input_=new QLineEdit;input_->setMaxLength(500);input_->setPlaceholderText("Сообщение на стриминговые сервисы");send_=new QPushButton("Отправить");send_->setObjectName("Primary");composer->addWidget(input_,1);composer->addWidget(send_);composerLayout->addLayout(composer);delivery_=new QLabel;delivery_->setObjectName("Hint");delivery_->setWordWrap(true);delivery_->setTextFormat(Qt::PlainText);delivery_->hide();composerLayout->addWidget(delivery_);layout->addWidget(composerCard);
         auto* usageCard=card();usageCard->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Maximum);auto* usageLayout=new QVBoxLayout(usageCard);usageLayout->setContentsMargins(8,5,8,5);usageLayout->setSpacing(2);usageTitle_=sectionTitle("Нагрузка плагина");usageLayout->addWidget(usageTitle_);auto* metrics=new QHBoxLayout;metrics->setSpacing(4);auto* cpuName=new QLabel("CPU");cpuName->setObjectName("Hint");metrics->addWidget(cpuName);cpuValue_=new QLabel("—");metrics->addWidget(cpuValue_);metrics->addStretch();memoryName_=new QLabel("Память данных");memoryName_->setObjectName("Hint");metrics->addWidget(memoryName_);memoryValue_=new QLabel("—");metrics->addWidget(memoryValue_);usageLayout->addLayout(metrics);usageCard_=usageCard;layout->addWidget(usageCard);
-        auto* footer=new QVBoxLayout;footer->setSpacing(0);auto* version=new QPushButton("developed by OTMOPOZOK · v" STREAM_CHAT_VERSION);version->setObjectName("Credit");version->setCursor(Qt::PointingHandCursor);version->setToolTip("https://www.youtube.com/channel/UCTAKYR3T2Ud8zZgNShgQfyw/");connect(version,&QPushButton::clicked,this,[]{QDesktopServices::openUrl(QUrl("https://www.youtube.com/channel/UCTAKYR3T2Ud8zZgNShgQfyw/"));});footer->addWidget(version);traffic_=new QLabel;traffic_->setAlignment(Qt::AlignCenter);traffic_->setStyleSheet("color:#72e9f4;font-size:10px;");traffic_->setToolTip("Трафик HTTP и WebSocket этого плагина с запуска OBS; без видео и сетевых заголовков");footer->addWidget(traffic_);layout->addLayout(footer);
+        auto* footer=new QVBoxLayout;footer->setSpacing(0);auto* version=new QPushButton("developed by OTMOPOZOK · v" STREAM_CHAT_VERSION);version->setObjectName("Credit");version->setCursor(Qt::PointingHandCursor);version->setToolTip("https://www.youtube.com/channel/UCTAKYR3T2Ud8zZgNShgQfyw/");connect(version,&QPushButton::clicked,this,[]{QDesktopServices::openUrl(QUrl("https://www.youtube.com/channel/UCTAKYR3T2Ud8zZgNShgQfyw/"));});footer->addWidget(version);traffic_=new QLabel;traffic_->setAlignment(Qt::AlignCenter);traffic_->setStyleSheet(QString("color:#72e9f4;font-size:%1px;").arg(std::max(8,10*textScale_/100)));traffic_->setToolTip("Трафик HTTP и WebSocket этого плагина с запуска OBS; без видео и сетевых заголовков");footer->addWidget(traffic_);layout->addLayout(footer);
         batch_.setInterval(20);batch_.setSingleShot(true);trafficTimer_.setInterval(2000);
         connect(&batch_,&QTimer::timeout,this,[this]{flush();});
         connect(scrollBottom_,&QPushButton::clicked,this,[this]{messages_->verticalScrollBar()->setValue(messages_->verticalScrollBar()->maximum());unread_=0;updateScrollButton();});
@@ -353,7 +353,7 @@ private:
         updatePreview();
         for(auto* choice:choices)connect(choice,&QPushButton::clicked,&dialog,[this,scaleTitle,updatePreview]{scaleTitle->setText(english_?"Text size":"Размер текста");updatePreview();});
         connect(slider,&QSlider::valueChanged,&dialog,[this,updatePreview](int value){
-            textScale_=value;setStyleSheet(scaledChatStyle(textScale_));redrawMessages();refresh();updatePreview();
+            textScale_=value;setStyleSheet(scaledChatStyle(textScale_));traffic_->setStyleSheet(QString("color:#72e9f4;font-size:%1px;").arg(std::max(8,10*textScale_/100)));redrawMessages();refresh();updatePreview();
             QSettings saved(configPath("ui.ini"),QSettings::IniFormat);saved.setValue("textScale",textScale_);saved.sync();
         });
         connect(&dialog,&QDialog::finished,&dialog,[this]{setStyleSheet(scaledChatStyle(textScale_));});
@@ -441,12 +441,12 @@ private:
         if(!redrawing_)updateScrollButton();
     }
     void refresh(){
-        paintStatus(twitchStatus_,twitch_.status(),"Twitch",twitch_.ready(),english_);paintStatus(youtubeStatus_,youtube_.status(),"YouTube",youtube_.ready(),english_);
+        paintStatus(twitchStatus_,twitch_.status(),"Twitch",twitch_.ready(),english_,textScale_);paintStatus(youtubeStatus_,youtube_.status(),"YouTube",youtube_.ready(),english_,textScale_);
         const QLocale ru(english_?QLocale::English:QLocale::Russian);
         twitchViewers_->setVisible(streaming_&&twitch_.viewerCount()>=0);
         youtubeViewers_->setVisible(streaming_&&youtube_.viewerCount()>=0);
-        if(twitch_.viewerCount()>=0){twitchViewers_->setText("👥 "+ru.toString(twitch_.viewerCount()));twitchViewers_->setStyleSheet(twitch_.viewerFresh()?"color:#dfe8ff;font-size:11px;":"color:#8ea1c0;font-size:11px;");twitchViewers_->setToolTip(twitch_.viewerFresh()?(english_?"Twitch viewers now":"Смотрят Twitch сейчас"):(english_?"Last known Twitch viewer count":"Последнее известное число зрителей Twitch"));}
-        if(youtube_.viewerCount()>=0){youtubeViewers_->setText("👥 "+ru.toString(youtube_.viewerCount()));youtubeViewers_->setStyleSheet(youtube_.viewerFresh()?"color:#dfe8ff;font-size:11px;":"color:#8ea1c0;font-size:11px;");youtubeViewers_->setToolTip(youtube_.viewerFresh()?(english_?"YouTube viewers now":"Смотрят YouTube сейчас"):(english_?"Last known YouTube viewer count":"Последнее известное число зрителей YouTube"));}
+        if(twitch_.viewerCount()>=0){twitchViewers_->setText("👥 "+ru.toString(twitch_.viewerCount()));twitchViewers_->setStyleSheet(QString("color:%1;font-size:%2px;").arg(twitch_.viewerFresh()?"#dfe8ff":"#8ea1c0").arg(std::max(9,11*textScale_/100)));twitchViewers_->setToolTip(twitch_.viewerFresh()?(english_?"Twitch viewers now":"Смотрят Twitch сейчас"):(english_?"Last known Twitch viewer count":"Последнее известное число зрителей Twitch"));}
+        if(youtube_.viewerCount()>=0){youtubeViewers_->setText("👥 "+ru.toString(youtube_.viewerCount()));youtubeViewers_->setStyleSheet(QString("color:%1;font-size:%2px;").arg(youtube_.viewerFresh()?"#dfe8ff":"#8ea1c0").arg(std::max(9,11*textScale_/100)));youtubeViewers_->setToolTip(youtube_.viewerFresh()?(english_?"YouTube viewers now":"Смотрят YouTube сейчас"):(english_?"Last known YouTube viewer count":"Последнее известное число зрителей YouTube"));}
         const bool showCounts=streaming_&&seenThisStream_;
         totalCount_->setVisible(showCounts&&(twitchMessages_+youtubeMessages_>0));
         twitchCount_->setVisible(showCounts&&twitchMessages_>0);youtubeCount_->setVisible(showCounts&&youtubeMessages_>0);
