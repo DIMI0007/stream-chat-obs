@@ -6,7 +6,8 @@
 #include <QComboBox>
 #include <QSignalBlocker>
 #include <QStringList>
-#include <QCheckBox>
+#include <QAbstractButton>
+#include <QSizePolicy>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -53,10 +54,6 @@ QPushButton#Disconnect:hover { color:#ff8d96; background:#2a1820; border-color:#
 QLineEdit,QTextEdit,QComboBox { color:#e7eeff; background:#0c1420; border:1px solid #344865; border-radius:6px; padding:5px; selection-background-color:#316ac4; }
 QLineEdit:focus,QTextEdit:focus,QComboBox:focus { border-color:#776af5; background:#111c2e; }
 QComboBox QAbstractItemView { background:#101a2b; color:#e7eeff; selection-background-color:#26344d; }
-QCheckBox { color:#dce7fb; spacing:6px; min-height:20px; }
-QCheckBox::indicator { width:15px; height:15px; }
-QCheckBox::indicator:unchecked { border-radius:4px; background:#344357; border:1px solid #65748d; }
-QCheckBox::indicator:checked { border-radius:4px; background:#00d37d; border:1px solid #2ff9a0; }
 QScrollBar:vertical { border:0; background:#101929; width:9px; }
 QScrollBar::handle:vertical { background:#384d6c; border-radius:4px; min-height:24px; }
 QScrollBar::handle:vertical:hover { background:#52698d; }
@@ -82,23 +79,27 @@ protected:
 private: QString platform_;
 };
 
-class PlatformToggle final : public QCheckBox {
+class PlatformToggle final : public QAbstractButton {
 public:
-    explicit PlatformToggle(QString platform,QWidget* parent=nullptr):QCheckBox(parent),platform_(std::move(platform)){
-        setFixedSize(34,32);setCursor(Qt::PointingHandCursor);setAccessibleName(platform_);setToolTip("Отправлять в "+platform_);
+    explicit PlatformToggle(QString platform,QWidget* parent=nullptr):QAbstractButton(parent),platform_(std::move(platform)){
+        setCheckable(true);setFixedSize(30,30);setCursor(Qt::PointingHandCursor);
+        setAccessibleName("Отправлять в "+platform_);setToolTip("Отправлять в "+platform_);
     }
 protected:
-    bool hitButton(const QPoint& point)const override{return rect().contains(point);}
     void paintEvent(QPaintEvent*)override{
         QPainter p(this);p.setRenderHint(QPainter::Antialiasing);p.setOpacity(isEnabled()?1.0:0.45);
-        p.setPen(QPen(isChecked()?QColor("#00cf84"):QColor("#34465d"),isChecked()?2:1));p.setBrush(isChecked()?QColor("#102c29"):QColor("#121b27"));p.drawRoundedRect(rect().adjusted(1,1,-1,-1),7,7);
-        const QColor brand=platform_=="YouTube"?QColor("#ff1538"):QColor("#9146ff");p.setPen(Qt::NoPen);p.setBrush(brand);p.drawRoundedRect(QRectF(5,4,24,24),6,6);p.setBrush(Qt::white);
+        p.setPen(QPen(isChecked()?QColor("#00cf84"):QColor("#34465d"),isChecked()?2:1));
+        p.setBrush(isChecked()?QColor("#102c29"):QColor("#121b27"));
+        p.drawRoundedRect(QRectF(1,1,28,28),7,7);
+        p.translate(4,4);p.scale(22.0/32.0,22.0/32.0);
+        const QColor brand=platform_=="YouTube"?QColor("#ff1538"):QColor("#9146ff");
+        p.setPen(Qt::NoPen);p.setBrush(brand);p.drawRoundedRect(QRectF(0,0,32,32),9,9);p.setBrush(Qt::white);
         if(platform_=="YouTube"){
-            p.drawRoundedRect(QRectF(8,10,18,12),4,4);p.setBrush(brand);QPainterPath play;play.moveTo(15,12);play.lineTo(21,16);play.lineTo(15,20);play.closeSubpath();p.drawPath(play);
+            p.drawRoundedRect(QRectF(5,8,22,16),5,5);p.setBrush(brand);QPainterPath play;play.moveTo(13,11);play.lineTo(22,16);play.lineTo(13,21);play.closeSubpath();p.drawPath(play);
         }else{
-            QPainterPath bubble;bubble.moveTo(9,8);bubble.lineTo(26,8);bubble.lineTo(26,21);bubble.lineTo(21,26);bubble.lineTo(16,26);bubble.lineTo(12,29);bubble.lineTo(12,25);bubble.lineTo(9,25);bubble.closeSubpath();p.drawPath(bubble);p.setPen(QPen(brand,2));p.drawLine(16,12,16,20);p.drawLine(22,12,22,20);
+            QPainterPath bubble;bubble.moveTo(7,6);bubble.lineTo(26,6);bubble.lineTo(26,21);bubble.lineTo(20,27);bubble.lineTo(14,27);bubble.lineTo(10,30);bubble.lineTo(10,25);bubble.lineTo(7,25);bubble.closeSubpath();p.drawPath(bubble);p.setPen(QPen(brand,2));p.drawLine(15,11,15,19);p.drawLine(21,11,21,19);
         }
-        if(hasFocus()){p.setBrush(Qt::NoBrush);p.setPen(QPen(QColor("#8a79ff"),1,Qt::DotLine));p.drawRoundedRect(rect().adjusted(0,0,-1,-1),7,7);}
+        if(hasFocus()){p.resetTransform();p.setBrush(Qt::NoBrush);p.setPen(QPen(QColor("#8a79ff"),1,Qt::DotLine));p.drawRoundedRect(QRectF(0.5,0.5,29,29),7,7);}
     }
 private: QString platform_;
 };
@@ -116,13 +117,28 @@ QPixmap messagePlatformIcon(const QString& platform){
 
 QWidget* card(){auto* result=new QWidget;result->setObjectName("Card");return result;}
 QLabel* sectionTitle(const QString& text){auto* result=new QLabel(text);result->setObjectName("Section");return result;}
-QString compactStatus(QString value,const QString& platform){value.remove(platform+": ");value.replace("чат подключён","Подключён",Qt::CaseInsensitive);value.replace("не подключён","Не подключён",Qt::CaseInsensitive);value.replace("вход выполнен, чат приостановлен","Вход выполнен",Qt::CaseInsensitive);value.replace("подтвердите разрешение в браузере","Подтвердите вход в браузере",Qt::CaseInsensitive);return value;}
+QString compactStatus(QString value,const QString& platform){
+    value.remove(platform+": ");
+    if(value.contains("активный эфир с чатом не найден",Qt::CaseInsensitive))return "Эфир не найден";
+    if(value.contains("чат подключён",Qt::CaseInsensitive))return "Подключён";
+    if(value.contains("не подключён",Qt::CaseInsensitive))return "Не подключён";
+    if(value.contains("вход выполнен",Qt::CaseInsensitive))return "Подключён";
+    if(value.contains("подтвердите",Qt::CaseInsensitive))return "Подтвердите вход";
+    if(value.contains("завершаем вход",Qt::CaseInsensitive))return "Завершаем вход";
+    if(value.contains("ищем активный эфир",Qt::CaseInsensitive))return "Ищем эфир";
+    if(value.contains("подключаем поток",Qt::CaseInsensitive))return "Подключаем чат";
+    if(value.contains("восстанавливаем",Qt::CaseInsensitive))return "Восстанавливаем";
+    if(value.contains("HTTP",Qt::CaseInsensitive))return "Ошибка входа";
+    if(value.contains("не удалось",Qt::CaseInsensitive)||value.contains("ошиб",Qt::CaseInsensitive))return "Ошибка подключения";
+    if(value.contains("эфир завершён",Qt::CaseInsensitive))return "Эфир завершён";
+    return value.size()>22?value.left(21)+"…":value;
+}
 void paintStatus(QLabel* label,const QString& raw,const QString& platform,bool ready){
     const QString value=compactStatus(raw,platform);QString color="#8ea1c0";
     if(ready)color="#00df8c";
-    else if(value.contains("HTTP",Qt::CaseInsensitive)||value.contains("ошиб",Qt::CaseInsensitive)||value.contains("не удалось",Qt::CaseInsensitive)||value.contains("отклон",Qt::CaseInsensitive)||value.contains("недоступ",Qt::CaseInsensitive))color="#ff7f88";
-    else if(value.contains("подтверд",Qt::CaseInsensitive)||value.contains("заверша",Qt::CaseInsensitive)||value.contains("ищем",Qt::CaseInsensitive)||value.contains("подключ",Qt::CaseInsensitive)||value.contains("восстанавли",Qt::CaseInsensitive))color="#ffcd57";
-    label->setText("● "+value);label->setStyleSheet(QString("color:%1;font-size:11px;").arg(color));
+    else if(value.contains("ошиб",Qt::CaseInsensitive)||value.contains("отклон",Qt::CaseInsensitive))color="#ff7f88";
+    else if(value.contains("подтверд",Qt::CaseInsensitive)||value.contains("заверша",Qt::CaseInsensitive)||value.contains("ищем",Qt::CaseInsensitive)||value.contains("подключ",Qt::CaseInsensitive)||value.contains("восстанавли",Qt::CaseInsensitive)||value.contains("эфир не найден",Qt::CaseInsensitive))color="#ffcd57";
+    label->setToolTip(raw);label->setText("● "+value);label->setStyleSheet(QString("color:%1;font-size:11px;").arg(color));
 }
 QString configPath(const char* name){char* raw=obs_module_config_path(name);if(!raw)return {};const auto path=QString::fromUtf8(raw);bfree(raw);return path;}
 class ChatDock final : public QWidget {
@@ -132,15 +148,13 @@ public:
         auto* layout=new QVBoxLayout(this);layout->setContentsMargins(8,8,8,8);layout->setSpacing(7);
         auto* header=new QHBoxLayout;header->setSpacing(7);header->addWidget(new PlatformBadge("Stream Chat"));auto* title=new QLabel("Stream Chat");title->setObjectName("Title");header->addWidget(title,1);layout->addLayout(header);
 
-        auto* twitchCard=card();auto* twitchLayout=new QVBoxLayout(twitchCard);twitchLayout->setContentsMargins(8,7,8,8);twitchLayout->setSpacing(5);
-        auto* twitchHead=new QHBoxLayout;twitchHead->setSpacing(7);twitchHead->addWidget(new PlatformBadge("Twitch"));twitchHead->addWidget(sectionTitle("Twitch"),1);logout_=new QPushButton("×");logout_->setObjectName("Disconnect");logout_->setToolTip("Отключить Twitch");twitchHead->addWidget(logout_);twitchLayout->addLayout(twitchHead);twitchStatus_=new QLabel;twitchStatus_->setWordWrap(true);twitchLayout->addWidget(twitchStatus_);
-        auto* connections=new QHBoxLayout;login_=new QPushButton("Войти");connections->addWidget(login_);twitchLayout->addLayout(connections);
+        auto* twitchCard=card();auto* twitchLayout=new QVBoxLayout(twitchCard);twitchLayout->setContentsMargins(8,6,8,6);twitchLayout->setSpacing(5);
+        auto* twitchHead=new QHBoxLayout;twitchHead->setSpacing(6);twitchHead->addWidget(new PlatformBadge("Twitch"));twitchHead->addWidget(sectionTitle("Twitch"));twitchStatus_=new QLabel;twitchStatus_->setAlignment(Qt::AlignRight|Qt::AlignVCenter);twitchStatus_->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Preferred);twitchHead->addWidget(twitchStatus_,1);login_=new QPushButton("Войти");twitchHead->addWidget(login_);logout_=new QPushButton("×");logout_->setObjectName("Disconnect");logout_->setToolTip("Отключить Twitch");twitchHead->addWidget(logout_);twitchLayout->addLayout(twitchHead);
         connect(login_,&QPushButton::clicked,&twitch_,&sc::TwitchChat::signIn);connect(logout_,&QPushButton::clicked,&twitch_,&sc::TwitchChat::signOut);
         code_=new QLabel;code_->setObjectName("Callout");code_->setTextFormat(Qt::PlainText);code_->setWordWrap(true);code_->setTextInteractionFlags(Qt::TextSelectableByMouse);code_->hide();twitchLayout->addWidget(code_);layout->addWidget(twitchCard);
 
-        auto* youtubeCard=card();auto* youtubeLayout=new QVBoxLayout(youtubeCard);youtubeLayout->setContentsMargins(8,7,8,8);youtubeLayout->setSpacing(5);
-        auto* youtubeHead=new QHBoxLayout;youtubeHead->setSpacing(7);youtubeHead->addWidget(new PlatformBadge("YouTube"));youtubeHead->addWidget(sectionTitle("YouTube"),1);googleLogout_=new QPushButton("×");googleLogout_->setObjectName("Disconnect");googleLogout_->setToolTip("Отключить YouTube");youtubeHead->addWidget(googleLogout_);youtubeLayout->addLayout(youtubeHead);youtubeStatus_=new QLabel;youtubeStatus_->setWordWrap(true);youtubeLayout->addWidget(youtubeStatus_);
-        auto* googleButtons=new QHBoxLayout;googleLogin_=new QPushButton("Войти");googleButtons->addWidget(googleLogin_);youtubeLayout->addLayout(googleButtons);
+        auto* youtubeCard=card();auto* youtubeLayout=new QVBoxLayout(youtubeCard);youtubeLayout->setContentsMargins(8,6,8,6);youtubeLayout->setSpacing(5);
+        auto* youtubeHead=new QHBoxLayout;youtubeHead->setSpacing(6);youtubeHead->addWidget(new PlatformBadge("YouTube"));youtubeHead->addWidget(sectionTitle("YouTube"));youtubeStatus_=new QLabel;youtubeStatus_->setAlignment(Qt::AlignRight|Qt::AlignVCenter);youtubeStatus_->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Preferred);youtubeHead->addWidget(youtubeStatus_,1);googleLogin_=new QPushButton("Войти");youtubeHead->addWidget(googleLogin_);googleLogout_=new QPushButton("×");googleLogout_->setObjectName("Disconnect");googleLogout_->setToolTip("Отключить YouTube");youtubeHead->addWidget(googleLogout_);youtubeLayout->addLayout(youtubeHead);
         connect(googleLogin_,&QPushButton::clicked,&youtube_,&sc::YouTubeChat::signIn);connect(googleLogout_,&QPushButton::clicked,&youtube_,&sc::YouTubeChat::signOut);
         auto* broadcasts=new QHBoxLayout;broadcast_=new QComboBox;broadcast_->addItem("Эфир не выбран",QString());find_=new QPushButton("Найти эфир");broadcasts->addWidget(broadcast_,1);broadcasts->addWidget(find_);youtubeLayout->addLayout(broadcasts);layout->addWidget(youtubeCard);
         connect(find_,&QPushButton::clicked,&youtube_,&sc::YouTubeChat::discover);
@@ -159,8 +173,8 @@ public:
         batch_.setInterval(20);batch_.setSingleShot(true);
         connect(&batch_,&QTimer::timeout,this,[this]{flush();});
         connect(send_,&QPushButton::clicked,this,[this]{send();});connect(input_,&QLineEdit::returnPressed,this,[this]{send();});
-        connect(target_,&QCheckBox::toggled,this,[this]{refresh();});
-        connect(youtubeTarget_,&QCheckBox::toggled,this,[this]{refresh();});
+        connect(target_,&QAbstractButton::toggled,this,[this]{refresh();});
+        connect(youtubeTarget_,&QAbstractButton::toggled,this,[this]{refresh();});
         connect(input_,&QLineEdit::textChanged,this,[this]{refresh();});
         connect(&twitch_,&sc::TwitchChat::changed,this,[this]{if(twitch_.ready())code_->hide();refresh();});
         connect(&youtube_,&sc::YouTubeChat::changed,this,[this]{refresh();});
@@ -192,7 +206,7 @@ private:
         const bool twitchBusy=code_->isVisible()&&twitch_.status().contains("подтвердите",Qt::CaseInsensitive);if(code_->isVisible()&&!twitchBusy&&!twitch_.ready())code_->hide();
         login_->setVisible(!twitch_.ready());logout_->setVisible(twitch_.ready());login_->setEnabled(!twitchBusy);
         googleLogin_->setVisible(!youtube_.signedIn());googleLogout_->setVisible(youtube_.signedIn());
-        const bool youtubeBusy=youtube_.status().contains("подтвердите",Qt::CaseInsensitive)||youtube_.status().contains("завершаем",Qt::CaseInsensitive);googleLogin_->setEnabled(!youtubeBusy);broadcast_->setEnabled(youtube_.signedIn());find_->setEnabled(youtube_.signedIn());
+        const bool youtubeBusy=youtube_.status().contains("подтвердите",Qt::CaseInsensitive)||youtube_.status().contains("завершаем",Qt::CaseInsensitive);googleLogin_->setEnabled(!youtubeBusy);broadcast_->setVisible(youtube_.signedIn());find_->setVisible(youtube_.signedIn());broadcast_->setEnabled(youtube_.signedIn());find_->setEnabled(youtube_.signedIn());
         delivery_->setVisible(!delivery_->text().isEmpty());
         const bool selected=target_->isChecked()||youtubeTarget_->isChecked();
         const bool destinations=(!target_->isChecked()||twitch_.ready())&&(!youtubeTarget_->isChecked()||youtube_.ready());
@@ -222,8 +236,8 @@ private:
         messages_->clear();for(const auto& message:history_)appendMessage(message);
     }
     sc::TwitchChat twitch_;sc::YouTubeChat youtube_;QTextEdit* messages_=nullptr;QLabel* twitchStatus_=nullptr;QLabel* youtubeStatus_=nullptr;QLabel* code_=nullptr;QLabel* delivery_=nullptr;
-    QLineEdit* input_=nullptr;QCheckBox* target_=nullptr;QPushButton* send_=nullptr;QPushButton* login_=nullptr;QPushButton* logout_=nullptr;
-    QCheckBox* youtubeTarget_=nullptr;QComboBox* broadcast_=nullptr;QPushButton* googleLogin_=nullptr;QPushButton* googleLogout_=nullptr;QPushButton* find_=nullptr;
+    QLineEdit* input_=nullptr;QAbstractButton* target_=nullptr;QPushButton* send_=nullptr;QPushButton* login_=nullptr;QPushButton* logout_=nullptr;
+    QAbstractButton* youtubeTarget_=nullptr;QComboBox* broadcast_=nullptr;QPushButton* googleLogin_=nullptr;QPushButton* googleLogout_=nullptr;QPushButton* find_=nullptr;
     QQueue<sc::ChatMessage> history_,pending_;QTimer batch_;int activeSends_=0;bool allSent_=false,twitchSent_=false,youtubeSent_=false;QStringList results_;
 };
 QPointer<ChatDock> dock;QString tlsPath;
