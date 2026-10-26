@@ -2,7 +2,7 @@ name: Build Stream Chat OBS (Windows)
 
 on:
   push:
-    branches: [main]
+    branches: [main, "codex/release-final"]
   workflow_dispatch:
 
 permissions:
