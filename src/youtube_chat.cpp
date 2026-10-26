@@ -12,6 +12,15 @@ namespace {
 const QString googleClient="398266429510-m38h7aklj8s3r123fqmc64h33cdbmh3j.apps.googleusercontent.com";
 QByteArray googleForm(std::initializer_list<std::pair<QString,QString>> fields){QUrlQuery q;for(const auto& field:fields)q.addQueryItem(field.first,field.second);return q.query(QUrl::FullyEncoded).toUtf8().replace("+","%2B");}
 QString randomVerifier(){QString value;for(int i=0;i<4;++i)value+=QString::number(QRandomGenerator::system()->generate64(),16).rightJustified(16,'0');return value;}
+QString oauthFailure(int http,const QJsonObject& data){
+    const QString code=data.value("error").toString().left(64);
+    if(code=="invalid_grant")return QString("YouTube: Google отклонил код входа — invalid_grant (HTTP %1)").arg(http);
+    if(code=="invalid_client")return QString("YouTube: Google не принял приложение — invalid_client (HTTP %1)").arg(http);
+    if(code=="redirect_uri_mismatch")return QString("YouTube: адрес возврата не совпал — redirect_uri_mismatch (HTTP %1)").arg(http);
+    if(code=="invalid_request")return QString("YouTube: Google отклонил запрос — invalid_request (HTTP %1)").arg(http);
+    if(!code.isEmpty())return QString("YouTube: вход отклонён — %1 (HTTP %2)").arg(code).arg(http);
+    return QString("YouTube: вход не завершён (HTTP %1)").arg(http);
+}
 }
 YouTubeChat::YouTubeChat(QString path,QObject* parent):QObject(parent),vault_(std::move(path)),login_(this){
     bool ok=false;tokens_=vault_.load(&ok);if(!ok)status_="YouTube: не удалось прочитать защищённые настройки";
@@ -24,7 +33,8 @@ YouTubeChat::YouTubeChat(QString path,QObject* parent):QObject(parent),vault_(st
         const auto body=googleForm({{"client_id",googleClient},{"grant_type","authorization_code"},{"code",code},{"redirect_uri",redirect},{"code_verifier",verifier_}});
         verifier_.clear();setStatus("YouTube: завершаем вход…");
         request(QUrl("https://oauth2.googleapis.com/token"),"POST",body,false,[this](int http,const QJsonObject& data){
-            if(http!=200||!saveTokens(data)){setStatus(QString("YouTube: вход не завершён (HTTP %1)").arg(http));return;}
+            if(http!=200){setStatus(oauthFailure(http,data));return;}
+            if(!saveTokens(data)){setStatus("YouTube: Google не вернул токен доступа");return;}
             if(visible_)discover();else setStatus("YouTube: вход выполнен, чат приостановлен");
         });
     });
