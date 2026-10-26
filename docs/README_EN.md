@@ -5,7 +5,7 @@
 <p><img alt="OBS 33.0.0" src="https://img.shields.io/badge/OBS-33.0.0-302E31"> <img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-0078D4"> <img alt="Native Qt" src="https://img.shields.io/badge/UI-native_Qt-00B88C"></p>
 </div>
 
-A native OBS dock for reading chat and sending messages to your own channels. It runs locally without a project-operated backend. Version **0.2.0** introduces the first Twitch adapter; the YouTube adapter is still being developed.
+A native OBS dock for reading chat and sending messages to your own channels. It runs locally without a project-operated backend. Test version **0.3.0** contains Twitch and YouTube adapters; live-account validation is still in progress.
 
 [Windows test builds](https://github.com/DIMI0007/stream-chat-obs/actions/workflows/build-windows.yml)
 
@@ -13,11 +13,11 @@ A native OBS dock for reading chat and sending messages to your own channels. It
 
 | Area | Status |
 | --- | --- |
-| OBS dock | The initial scaffold built successfully in Windows CI. |
+| OBS dock | The OBS 33 DLL built successfully in Windows CI. |
 | Twitch registration | Public client registration verified in the developer console. |
 | Twitch sign-in and chat | Device-code sign-in, EventSub messages/moderation and explicit message sending implemented. Build verification passed in CI; a live account has not been validated. |
-| YouTube | Desktop OAuth client registered. Chat adapter not connected yet. |
-| Token storage | Windows DPAPI round-trip, corrupt-file handling and local sign-out passed CI. |
+| YouTube | Browser sign-in, active-stream discovery, streaming reads, message removal and explicit sends are implemented. Build and protocol checks passed CI; a live account has not been validated. |
+| Token storage | Windows DPAPI, corrupt-file handling, loopback OAuth and streaming-message format checks passed CI. |
 | Code signing | Artifacts are unsigned. Windows Smart App Control acceptance is not guaranteed. |
 
 This is an **alpha build**, not a completed public release. Passing CI does not prove real chat connectivity.
@@ -26,7 +26,7 @@ This is an **alpha build**, not a completed public release. Passing CI does not 
 
 The dock uses native Qt widgets, with no embedded browser UI. History is limited to 500 messages and remains in memory. Small batches update the view; remote avatars and images are not downloaded. Hidden docks stop network connections and timers.
 
-Twitch uses EventSub WebSockets. Message sends with uncertain outcomes are never automatically repeated. Accounts are stored locally with Windows DPAPI protection, and user tokens are never used in CI.
+Twitch uses EventSub WebSockets. YouTube uses the official HTTP/2 streaming API instead of continuous REST polling. Message sends with uncertain outcomes are never automatically repeated. Accounts are stored locally with Windows DPAPI protection, and user tokens are never used in CI.
 
 ## Install or update
 
@@ -50,7 +50,11 @@ Check the selected destination before sending. After an uncertain send result, r
 
 ## YouTube
 
-The Google Desktop OAuth client exists, but sign-in and chat are not connected in this revision. The app remains in Testing. A public release requires OAuth verification and management of the shared YouTube API quota.
+Click **Sign in to YouTube** and approve access in the system browser. After starting a broadcast, click **Find stream**. A single active chat is selected automatically; when several are found, choose one from the list.
+
+The plugin requests `youtube.force-ssl`, which is required to read and send chat messages. The authorization code returns to a temporary `127.0.0.1` listener, and Windows DPAPI protects the saved tokens. No project-operated authorization server is used.
+
+Google OAuth remains in Testing. Until the application completes public verification, only configured test users can sign in. The project's shared API quota also applies.
 
 ## Diagnostics
 
