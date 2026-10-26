@@ -14,12 +14,12 @@
 
 ## Features
 
-- A combined chat with a platform icon and subtle color accent on each message.
+- A combined chat with compact platform markers and local message time when the service supplies it. A down button counts new messages while reading older ones.
 - Browser sign-in and Windows-protected local account storage.
 - Automatic YouTube chat discovery after streaming starts.
 - In-stream message and viewer counts. Twitch viewers refresh about every 30 seconds; YouTube about every minute when the API supplies a count.
 - Send to selected connected channels. Both platforms are selected by default.
-- The ⚙ button in the top right opens the **Авто / Русский / English** language setting.
+- The ⚙ button opens **Auto / Russian / English** language choices and a text size control with a live preview.
 
 ## Install
 

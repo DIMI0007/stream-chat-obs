@@ -175,6 +175,10 @@ void TwitchChat::receive(QWebSocket* ws,const QString& raw,bool migration){
     if(subscription=="channel.chat.message"){
         const auto body=event.value("message").toObject();
         ChatMessage message{"Twitch",event.value("message_id").toString(),event.value("chatter_user_id").toString(),event.value("chatter_user_name").toString().left(100),body.value("text").toString().left(5000)};
+        if(message.id.isEmpty())return;
+        const QString chatKey="chat:"+message.id;
+        if(seen_.contains(chatKey))return;
+        seen_.insert(chatKey);seenOrder_.enqueue(chatKey);while(seenOrder_.size()>1000)seen_.remove(seenOrder_.dequeue());
         message.sentAt=parsePlatformTime(metadata.value("message_timestamp").toString());
         int remaining=5000;
         for(const auto& item:body.value("fragments").toArray()){
