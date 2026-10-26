@@ -238,6 +238,9 @@ bool anyStreamingOutput(){
 }
 class ChatDock final : public QWidget {
 public:
+#ifdef STREAM_CHAT_PREVIEW
+    void previewAppend(const sc::ChatMessage& message){history_.enqueue(message);appendMessage(message);}
+#endif
     ChatDock():twitch_(configPath("twitch-account.dat"),this),youtube_(configPath("youtube-account.dat"),this){
         {QSettings saved(configPath("ui.ini"),QSettings::IniFormat);textScale_=std::clamp(saved.value("textScale",100).toInt(),80,140);}
         setObjectName("StreamChatRoot");setMinimumWidth(320);setStyleSheet(scaledChatStyle(textScale_));
