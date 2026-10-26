@@ -157,13 +157,13 @@ public:
         auto* youtubeCard=card();auto* youtubeLayout=new QVBoxLayout(youtubeCard);youtubeLayout->setContentsMargins(8,6,8,6);youtubeLayout->setSpacing(5);
         auto* youtubeHead=new QHBoxLayout;youtubeHead->setSpacing(6);youtubeHead->addWidget(new PlatformBadge("YouTube"));youtubeHead->addWidget(sectionTitle("YouTube"));youtubeStatus_=new QLabel;youtubeStatus_->setAlignment(Qt::AlignRight|Qt::AlignVCenter);youtubeStatus_->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Preferred);youtubeHead->addWidget(youtubeStatus_,1);googleLogin_=new QPushButton("Войти");youtubeHead->addWidget(googleLogin_);googleLogout_=new QPushButton("×");googleLogout_->setObjectName("Disconnect");googleLogout_->setToolTip("Отключить YouTube");youtubeHead->addWidget(googleLogout_);youtubeLayout->addLayout(youtubeHead);
         connect(googleLogin_,&QPushButton::clicked,&youtube_,&sc::YouTubeChat::signIn);connect(googleLogout_,&QPushButton::clicked,&youtube_,&sc::YouTubeChat::signOut);
-        auto* broadcasts=new QHBoxLayout;broadcast_=new QComboBox;broadcast_->addItem("Эфир не выбран",QString());find_=new QPushButton("Найти эфир");broadcasts->addWidget(broadcast_,1);broadcasts->addWidget(find_);youtubeLayout->addLayout(broadcasts);layout->addWidget(youtubeCard);
-        connect(find_,&QPushButton::clicked,&youtube_,&sc::YouTubeChat::discover);
+        broadcast_=new QComboBox;broadcast_->addItem("Выберите эфир",QString());youtubeLayout->addWidget(broadcast_);layout->addWidget(youtubeCard);
         connect(broadcast_,&QComboBox::currentIndexChanged,this,[this](int index){const auto id=broadcast_->itemData(index).toString();if(!id.isEmpty())youtube_.selectChat(id);});
         connect(&youtube_,&sc::YouTubeChat::broadcasts,this,[this](const QJsonArray& choices){
             const QSignalBlocker block(broadcast_);broadcast_->clear();broadcast_->addItem("Выберите эфир",QString());
             for(const auto& value:choices){const auto choice=value.toObject();broadcast_->addItem(choice.value("title").toString(),choice.value("id").toString());}
             if(choices.size()==1)broadcast_->setCurrentIndex(1);
+            refresh();
         });
         auto* chatCard=card();auto* chatLayout=new QVBoxLayout(chatCard);chatLayout->setContentsMargins(8,7,8,8);chatLayout->setSpacing(5);auto* chatHead=new QHBoxLayout;chatHead->addWidget(sectionTitle("Чат"));chatHead->addStretch();totalCount_=new QLabel;totalCount_->setObjectName("Hint");totalCount_->setToolTip("Всего сообщений за этот запуск OBS");chatHead->addWidget(totalCount_);chatLayout->addLayout(chatHead);
         messages_=new QTextEdit;messages_->setReadOnly(true);messages_->setAcceptRichText(false);messages_->setFocusPolicy(Qt::NoFocus);messages_->setTextInteractionFlags(Qt::NoTextInteraction);messages_->setContextMenuPolicy(Qt::NoContextMenu);messages_->setCursor(Qt::ArrowCursor);messages_->document()->setMaximumBlockCount(500);messages_->setPlaceholderText("Здесь появятся сообщения. История хранится только до закрытия OBS.");
@@ -188,10 +188,10 @@ public:
         connect(&twitch_,&sc::TwitchChat::clearChat,this,[this]{remove([](const sc::ChatMessage& m){return m.platform=="Twitch";});});
         connect(&twitch_,&sc::TwitchChat::sent,this,[this](bool confirmed,const QString& reason){completed("Twitch",confirmed,reason);});
         connect(&youtube_,&sc::YouTubeChat::sent,this,[this](bool confirmed,const QString& reason){completed("YouTube",confirmed,reason);});
-        streaming_=obs_frontend_streaming_active();
+        streaming_=obs_frontend_streaming_active();youtube_.setStreamActive(streaming_);
         refresh();
     }
-    void setStreaming(bool active){if(streaming_==active)return;streaming_=active;seenThisStream_=false;refresh();}
+    void setStreaming(bool active){if(streaming_==active)return;streaming_=active;seenThisStream_=false;youtube_.setStreamActive(active);refresh();}
 protected:
     void showEvent(QShowEvent* event)override{QWidget::showEvent(event);twitch_.setVisible(true);youtube_.setVisible(true);if(!pending_.isEmpty())batch_.start();}
     void hideEvent(QHideEvent* event)override{twitch_.setVisible(false);youtube_.setVisible(false);batch_.stop();if(activeSends_)delivery_->setText("Панель скрыта: результат отправки не подтверждён. Автоматического повтора нет.");activeSends_=0;refresh();QWidget::hideEvent(event);}
@@ -213,7 +213,7 @@ private:
         const bool twitchBusy=code_->isVisible()&&twitch_.status().contains("подтвердите",Qt::CaseInsensitive);if(code_->isVisible()&&!twitchBusy&&!twitch_.ready())code_->hide();
         login_->setVisible(!twitch_.ready());logout_->setVisible(twitch_.ready());login_->setEnabled(!twitchBusy);
         googleLogin_->setVisible(!youtube_.signedIn());googleLogout_->setVisible(youtube_.signedIn());
-        const bool youtubeBusy=youtube_.status().contains("подтвердите",Qt::CaseInsensitive)||youtube_.status().contains("завершаем",Qt::CaseInsensitive);googleLogin_->setEnabled(!youtubeBusy);broadcast_->setVisible(youtube_.signedIn());find_->setVisible(youtube_.signedIn());broadcast_->setEnabled(youtube_.signedIn());find_->setEnabled(youtube_.signedIn());
+        const bool youtubeBusy=youtube_.status().contains("подтвердите",Qt::CaseInsensitive)||youtube_.status().contains("завершаем",Qt::CaseInsensitive);googleLogin_->setEnabled(!youtubeBusy);broadcast_->setVisible(youtube_.signedIn()&&broadcast_->count()>2);
         delivery_->setVisible(!delivery_->text().isEmpty());
         const bool selected=target_->isChecked()||youtubeTarget_->isChecked();
         const bool destinations=(!target_->isChecked()||twitch_.ready())&&(!youtubeTarget_->isChecked()||youtube_.ready());
@@ -244,7 +244,7 @@ private:
     }
     sc::TwitchChat twitch_;sc::YouTubeChat youtube_;QTextEdit* messages_=nullptr;QLabel* twitchStatus_=nullptr;QLabel* youtubeStatus_=nullptr;QLabel* code_=nullptr;QLabel* delivery_=nullptr;QLabel* totalCount_=nullptr;QLabel* twitchCount_=nullptr;QLabel* youtubeCount_=nullptr;
     QLineEdit* input_=nullptr;QAbstractButton* target_=nullptr;QPushButton* send_=nullptr;QPushButton* login_=nullptr;QPushButton* logout_=nullptr;
-    QAbstractButton* youtubeTarget_=nullptr;QComboBox* broadcast_=nullptr;QPushButton* googleLogin_=nullptr;QPushButton* googleLogout_=nullptr;QPushButton* find_=nullptr;
+    QAbstractButton* youtubeTarget_=nullptr;QComboBox* broadcast_=nullptr;QPushButton* googleLogin_=nullptr;QPushButton* googleLogout_=nullptr;
     QQueue<sc::ChatMessage> history_,pending_;QTimer batch_;int activeSends_=0;bool allSent_=false,twitchSent_=false,youtubeSent_=false;bool streaming_=false,seenThisStream_=false;quint64 twitchMessages_=0,youtubeMessages_=0;QStringList results_;
 };
 QPointer<ChatDock> dock;QString tlsPath;
@@ -263,4 +263,3 @@ bool obs_module_load(void){
     obs_frontend_add_event_callback(onFrontendEvent,nullptr);blog(LOG_INFO,"Stream Chat OBS %s loaded; HTTPS: %s",STREAM_CHAT_VERSION,QSslSocket::supportsSsl()?"available":"unavailable");return true;
 }
 void obs_module_unload(void){obs_frontend_remove_event_callback(onFrontendEvent,nullptr);if(dock)obs_frontend_remove_dock(DockId);dock=nullptr;if(!tlsPath.isEmpty())QCoreApplication::removeLibraryPath(tlsPath);tlsPath.clear();}
-

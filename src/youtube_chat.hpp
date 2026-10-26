@@ -17,7 +17,7 @@ class YouTubeChat final : public QObject {
 public:
     explicit YouTubeChat(QString path,QObject* parent=nullptr);
     ~YouTubeChat()override;
-    void setVisible(bool active);
+    void setVisible(bool active);void setStreamActive(bool active);
     void signIn();void signOut();void discover();void selectChat(const QString& id);void send(const QString& text);
     bool ready()const{return ready_;}bool signedIn()const{return !tokens_.value("access_token").toString().isEmpty();}QString status()const{return status_;}
 Q_SIGNALS:
@@ -30,9 +30,8 @@ private:
     void openStream();void stopStream();void stopNetwork();void receive();void retry();
     SecureStore vault_;QJsonObject tokens_;QNetworkAccessManager http_;OAuthLoopback login_;
     QSet<QNetworkReply*> replies_;QPointer<QNetworkReply> stream_;youtube_wire::Frames frames_;
-    QTimer retry_,expiry_;QString status_="YouTube: не подключён",verifier_,chatId_,pageToken_;
+    QTimer retry_,expiry_,search_;QString status_="YouTube: не подключён",verifier_,chatId_,pageToken_;
     QQueue<QString> seenOrder_;QSet<QString> seen_;quint64 generation_=0;
-    bool visible_=false,ready_=false,refreshing_=false,finding_=false;int attempts_=0,authRetries_=0;
+    bool visible_=false,ready_=false,refreshing_=false,finding_=false,streamActive_=false;int attempts_=0,authRetries_=0;
 };
 }
-

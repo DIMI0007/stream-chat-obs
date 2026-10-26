@@ -36,7 +36,8 @@ QString oauthFailure(int http,const QJsonObject& data){
 }
 YouTubeChat::YouTubeChat(QString path,QObject* parent):QObject(parent),vault_(std::move(path)),login_(this){
     bool ok=false;tokens_=vault_.load(&ok);if(!ok)status_="YouTube: не удалось прочитать защищённые настройки";
-    retry_.setSingleShot(true);expiry_.setSingleShot(true);
+    retry_.setSingleShot(true);expiry_.setSingleShot(true);search_.setInterval(10000);
+    connect(&search_,&QTimer::timeout,this,[this]{if(streamActive_&&visible_&&!ready_&&chatId_.isEmpty())discover();});
     connect(&retry_,&QTimer::timeout,this,[this]{if(chatId_.isEmpty())discover();else openStream();});
     connect(&expiry_,&QTimer::timeout,this,&YouTubeChat::refresh);
     connect(&login_,&OAuthLoopback::failed,this,[this](const QString&){verifier_.clear();setStatus("YouTube: вход отменён или время истекло");});
@@ -47,7 +48,8 @@ YouTubeChat::YouTubeChat(QString path,QObject* parent):QObject(parent),vault_(st
         request(QUrl("https://oauth2.googleapis.com/token"),"POST",body,false,[this](int http,const QJsonObject& data){
             if(http!=200){setStatus(oauthFailure(http,data));return;}
             if(!saveTokens(data)){setStatus("YouTube: Google не вернул токен доступа");return;}
-            if(visible_)discover();else setStatus("YouTube: вход выполнен, чат приостановлен");
+            if(visible_&&streamActive_){search_.start();setStatus("YouTube: вход выполнен, ждём эфир");}
+            else setStatus("YouTube: вход выполнен, ожидаем эфир");
         });
     });
 }
@@ -65,13 +67,20 @@ void YouTubeChat::request(const QUrl& url,const QByteArray& method,const QByteAr
     });
 }
 void YouTubeChat::stopStream(){if(stream_){auto reply=stream_;stream_=nullptr;reply->disconnect(this);reply->abort();reply->deleteLater();}frames_.clear();ready_=false;}
-void YouTubeChat::stopNetwork(){++generation_;stopStream();login_.stop();retry_.stop();expiry_.stop();refreshing_=false;finding_=false;verifier_.clear();const auto pending=replies_.values();replies_.clear();for(auto* reply:pending)reply->abort();}
+void YouTubeChat::stopNetwork(){++generation_;stopStream();login_.stop();retry_.stop();expiry_.stop();search_.stop();refreshing_=false;finding_=false;verifier_.clear();const auto pending=replies_.values();replies_.clear();for(auto* reply:pending)reply->abort();}
 void YouTubeChat::setVisible(bool active){
     if(visible_==active)return;visible_=active;
     if(!active){stopNetwork();setStatus("YouTube: приостановлен");}
     else if(tokens_.value("access_token").toString().isEmpty())setStatus("YouTube: не подключён");
     else if(tokens_.value("expires_at").toDouble()<=double(QDateTime::currentSecsSinceEpoch()+60))refresh();
-    else discover();Q_EMIT changed();
+    else if(!chatId_.isEmpty())openStream();
+    else if(streamActive_){search_.start();setStatus("YouTube: ждём поиск эфира");}
+    else setStatus("YouTube: ожидаем начала эфира");Q_EMIT changed();
+}
+void YouTubeChat::setStreamActive(bool active){
+    if(streamActive_==active)return;streamActive_=active;
+    if(!active){search_.stop();if(chatId_.isEmpty()&&signedIn())setStatus("YouTube: ожидаем начала эфира");return;}
+    if(visible_&&signedIn()&&chatId_.isEmpty()){search_.start();setStatus("YouTube: ждём поиск эфира");}
 }
 void YouTubeChat::signIn(){
     stopNetwork();chatId_.clear();pageToken_.clear();authRetries_=0;
@@ -99,7 +108,7 @@ void YouTubeChat::refresh(){
     if(secret.isEmpty()){refreshing_=false;setStatus("YouTube: нет настроек входа Google. Установите полный архив плагина.");return;}
     request(QUrl("https://oauth2.googleapis.com/token"),"POST",googleForm({{"client_id",googleClient},{"client_secret",secret},{"grant_type","refresh_token"},{"refresh_token",tokens_.value("refresh_token").toString()}}),false,[this](int http,const QJsonObject& data){
         refreshing_=false;
-        if(http==200&&saveTokens(data)){if(visible_){if(chatId_.isEmpty())discover();else openStream();}return;}
+        if(http==200&&saveTokens(data)){if(visible_){if(chatId_.isEmpty()){if(streamActive_)search_.start();}else openStream();}return;}
         if(http==400||http==401){stopNetwork();tokens_={};vault_.save({});setStatus("YouTube: разрешение истекло, войдите снова");}
         else {setStatus("YouTube: не удалось обновить вход, повторите подключение");}Q_EMIT changed();
     });
@@ -113,17 +122,18 @@ void YouTubeChat::discover(){
     QUrl url("https://www.googleapis.com/youtube/v3/liveBroadcasts");QUrlQuery q;q.addQueryItem("part","snippet");q.addQueryItem("broadcastStatus","active");q.addQueryItem("broadcastType","all");q.addQueryItem("maxResults","50");url.setQuery(q);
     request(url,"GET",{},true,[this](int http,const QJsonObject& data){
         finding_=false;if(http==401){refresh();return;}
-        if(http!=200){setStatus(QString("YouTube: эфир недоступен (HTTP %1). Проверьте доступ и квоту API.").arg(http));return;}
+        if(http!=200){if(http==403||http==429)search_.stop();setStatus(QString("YouTube: эфир недоступен (HTTP %1). Проверьте доступ и квоту API.").arg(http));return;}
         QJsonArray choices;for(const auto& item:data.value("items").toArray()){
             const auto snippet=item.toObject().value("snippet").toObject();const auto id=snippet.value("liveChatId").toString();
             if(!id.isEmpty())choices.append(QJsonObject{{"id",id},{"title",snippet.value("title").toString().left(200)}});
         }
         Q_EMIT broadcasts(choices);
         if(choices.size()==1)selectChat(choices.first().toObject().value("id").toString());
-        else setStatus(choices.isEmpty()?"YouTube: активный эфир с чатом не найден. Нажмите «Найти эфир» после запуска.":"YouTube: выберите эфир для подключения");
+        else if(choices.isEmpty())setStatus("YouTube: активный эфир с чатом не найден. Повторим поиск через 10 с.");
+        else {search_.stop();setStatus("YouTube: выберите эфир для подключения");}
     });
 }
-void YouTubeChat::selectChat(const QString& id){if(id.isEmpty()||id.size()>512||!visible_)return;stopStream();chatId_=id;pageToken_.clear();attempts_=0;authRetries_=0;seen_.clear();seenOrder_.clear();openStream();}
+void YouTubeChat::selectChat(const QString& id){if(id.isEmpty()||id.size()>512||!visible_)return;search_.stop();stopStream();chatId_=id;pageToken_.clear();attempts_=0;authRetries_=0;seen_.clear();seenOrder_.clear();openStream();}
 void YouTubeChat::openStream(){
     if(!visible_||chatId_.isEmpty()||refreshing_)return;
     stopStream();retry_.stop();setStatus("YouTube: подключаем поток чата…");
@@ -163,7 +173,7 @@ void YouTubeChat::receive(){
 }
 void YouTubeChat::retry(){
     if(!visible_||retry_.isActive())return;
-    if(++attempts_>8){setStatus("YouTube: соединение не восстановлено. Нажмите «Найти эфир» для повтора.");return;}
+    if(++attempts_>8){setStatus("YouTube: соединение не восстановлено. Повторим при следующем эфире.");return;}
     setStatus("YouTube: восстанавливаем соединение…");retry_.start(std::min(120000,1000*(1<<std::min(attempts_,6))));
 }
 void YouTubeChat::send(const QString& text){
