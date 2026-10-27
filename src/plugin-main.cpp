@@ -315,7 +315,7 @@ public:
     }
     void setStreaming(bool active){if(streaming_==active)return;streaming_=active;seenThisStream_=false;twitch_.setStreamActive(active);youtube_.setStreamActive(active);refresh();}
 protected:
-    void showEvent(QShowEvent* event)override{QWidget::showEvent(event);setStreaming(anyStreamingOutput());twitch_.setVisible(true);youtube_.setVisible(true);QTimer::singleShot(0,this,[this]{if(isVisible()){twitch_.setVisible(true);youtube_.setVisible(true);refresh();}});trafficTimer_.start();updateTraffic();updateMetrics();if(!pending_.isEmpty())batch_.start();if(!emotes_.isEmpty())emoteRedraw_.start();}
+    void showEvent(QShowEvent* event)override{QWidget::showEvent(event);setStreaming(anyStreamingOutput());twitch_.setVisible(true);youtube_.setVisible(true);QTimer::singleShot(0,this,[this]{if(isVisible()){twitch_.setVisible(true);youtube_.setVisible(true);refresh();}});trafficTimer_.start();updateTraffic();updateMetrics();if(!pending_.isEmpty())batch_.start();if(emotesDirty_)emoteRedraw_.start();}
     void hideEvent(QHideEvent* event)override{twitch_.setVisible(false);youtube_.setVisible(false);batch_.stop();trafficTimer_.stop();emoteRedraw_.stop();if(activeSends_)delivery_->setText(english_?"Dock hidden: delivery unconfirmed. No automatic retry.":"Панель скрыта: результат отправки не подтверждён. Автоматического повтора нет.");activeSends_=0;refresh();QWidget::hideEvent(event);}
 private:
     void applyChatTextSize(){
@@ -405,7 +405,7 @@ private:
             QPixmap image;if(ok)image.loadFromData(bytes,"PNG");reply->deleteLater();
             if(image.isNull()||image.width()>128||image.height()>128){failedEmotes_.insert(id);return;}
             emotes_.insert(id,image.scaled(20,20,Qt::KeepAspectRatio,Qt::SmoothTransformation));
-            if(isVisible()&&!emoteRedraw_.isActive())emoteRedraw_.start();
+            emotesDirty_=true;if(isVisible()&&!emoteRedraw_.isActive())emoteRedraw_.start();
         });
     }
     void updateMetrics(){
@@ -430,7 +430,7 @@ private:
         messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/twitch"),messagePlatformIcon("Twitch"));
         messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/youtube"),messagePlatformIcon("YouTube"));
         for(const auto& message:history_)appendMessage(message,false);
-        bar->setValue(bottom?bar->maximum():oldPosition);redrawing_=false;updateScrollButton();
+        bar->setValue(bottom?bar->maximum():oldPosition);redrawing_=false;emotesDirty_=false;updateScrollButton();
     }
     void appendMessage(const sc::ChatMessage& message,bool fresh=true){
         auto* bar=messages_->verticalScrollBar();const bool bottom=atBottom();const int oldPosition=bar->value();
@@ -503,7 +503,7 @@ private:
     sc::TwitchChat twitch_;sc::YouTubeChat youtube_;QStackedLayout* pages_=nullptr;QTextEdit* messages_=nullptr;QLabel* twitchStatus_=nullptr;QLabel* youtubeStatus_=nullptr;QLabel* twitchViewers_=nullptr;QLabel* youtubeViewers_=nullptr;QLabel* code_=nullptr;QLabel* delivery_=nullptr;QLabel* totalCount_=nullptr;QLabel* twitchCount_=nullptr;QLabel* youtubeCount_=nullptr;QLabel* traffic_=nullptr;QLabel* cpuValue_=nullptr;QLabel* memoryValue_=nullptr;QLabel* chatTitle_=nullptr;QLabel* recipientHint_=nullptr;QLabel* usageTitle_=nullptr;QLabel* memoryName_=nullptr;QWidget* usageCard_=nullptr;QPushButton* settings_=nullptr;QPushButton* scrollBottom_=nullptr;
     QLineEdit* input_=nullptr;QAbstractButton* target_=nullptr;QPushButton* send_=nullptr;QPushButton* login_=nullptr;QPushButton* logout_=nullptr;
     QAbstractButton* youtubeTarget_=nullptr;QComboBox* broadcast_=nullptr;QPushButton* googleLogin_=nullptr;QPushButton* googleLogout_=nullptr;
-    QQueue<sc::ChatMessage> history_,pending_;QTimer batch_,trafficTimer_,emoteRedraw_;QElapsedTimer usageClock_;QNetworkAccessManager emoteHttp_;QHash<QString,QPixmap> emotes_;QSet<QString> pendingEmotes_,failedEmotes_;std::uint64_t lastCpuNs_=0;int activeSends_=0,unread_=0,textScale_=100;bool allSent_=false,twitchSent_=false,youtubeSent_=false;bool streaming_=false,seenThisStream_=false,english_=false,redrawing_=false;QString language_="auto";quint64 twitchMessages_=0,youtubeMessages_=0;QStringList results_;
+    QQueue<sc::ChatMessage> history_,pending_;QTimer batch_,trafficTimer_,emoteRedraw_;QElapsedTimer usageClock_;QNetworkAccessManager emoteHttp_;QHash<QString,QPixmap> emotes_;QSet<QString> pendingEmotes_,failedEmotes_;std::uint64_t lastCpuNs_=0;int activeSends_=0,unread_=0,textScale_=100;bool allSent_=false,twitchSent_=false,youtubeSent_=false;bool streaming_=false,seenThisStream_=false,english_=false,redrawing_=false,emotesDirty_=false;QString language_="auto";quint64 twitchMessages_=0,youtubeMessages_=0;QStringList results_;
 };
 #ifndef STREAM_CHAT_PREVIEW
 QPointer<ChatDock> dock;QString tlsPath;

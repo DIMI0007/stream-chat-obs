@@ -4,7 +4,7 @@
 
 ![Stream Chat English interface](screenshots/chat-en.png)
 
-*Version 0.3.10 UI preview from an isolated test host; no live channels are connected.* [Russian interface](screenshots/chat-ru.png).
+*Version 0.3.13 UI preview from an isolated test host; messages and connections are sample data.* [Russian interface](screenshots/chat-ru.png) · [Settings](screenshots/settings-en.png).
 
 ## Features
 
@@ -12,14 +12,15 @@
 - Scrolling up holds your place. A down button counts new messages and takes you back to the latest ones.
 - Send text to Twitch, YouTube, or both connected chats. Both destinations are selected by default.
 - YouTube chat discovery starts after the broadcast begins. Viewer counts appear during a stream when the service provides them.
+- If the YouTube streaming connection stops delivering data, the plugin switches to the official chat polling API at a limited rate.
 - Sign in through a browser without copying tokens. Account data stays on this PC and is protected by Windows.
 - Settings include **Auto / Russian / English** and text size with a live preview. Message history is cleared when OBS closes.
 
 ## Verified status
 
 - OBS 33 on Windows x64 loads the plugin. Twitch sign-in, real messages, and viewer count were checked during a stream on version 0.3.8.
-- Google browser sign-in was confirmed. Reading and sending YouTube chat during a real broadcast still need validation.
-- Version 0.3.10 is built and tested in CI; its new interface features still need a live OBS check.
+- Google browser sign-in was confirmed. The YouTube polling fallback still needs validation during a real broadcast.
+- Version 0.3.13 is built and UI-tested in CI; live YouTube chat still needs confirmation.
 
 ## Install
 
