@@ -204,9 +204,9 @@ QString englishStatus(const QString& value){
 }
 void paintStatus(QLabel* label,const QString& raw,const QString& platform,bool ready,bool english){
     const QString value=compactStatus(raw,platform);QString color="#8ea1c0";
-    if(ready)color="#00df8c";
-    else if(value.contains("ошиб",Qt::CaseInsensitive)||value.contains("отклон",Qt::CaseInsensitive))color="#ff7f88";
-    else if(value=="Подключение"||value.contains("подтверд",Qt::CaseInsensitive)||value.contains("заверша",Qt::CaseInsensitive)||value.contains("ищем",Qt::CaseInsensitive)||value.contains("эфир не найден",Qt::CaseInsensitive))color="#ffcd57";
+    if(ready)color="#07df91";
+    else if(value.contains("ошиб",Qt::CaseInsensitive)||value.contains("отклон",Qt::CaseInsensitive))color="#ff8484";
+    else if(value=="Подключение"||value.contains("подтверд",Qt::CaseInsensitive)||value.contains("заверша",Qt::CaseInsensitive)||value.contains("ищем",Qt::CaseInsensitive)||value.contains("эфир не найден",Qt::CaseInsensitive))color="#ffdc45";
     const QString shown=english?englishStatus(value):value;
     const bool changed=label->property("statusShown").isValid()&&label->property("statusShown").toString()!=shown;
     if(english){const auto http=raw.indexOf("(HTTP ");label->setToolTip(http<0?shown:shown+" "+raw.mid(http));}

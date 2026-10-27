@@ -2,6 +2,8 @@
 
 **Чаты Twitch и YouTube в одной док-панели OBS.** Плагин работает на вашем компьютере без нашего сервера. [English](docs/README_EN.md).
 
+[Общий визуальный стиль трёх плагинов](docs/VISUAL_STYLE_RU.md).
+
 ![Панель Stream Chat на русском](docs/screenshots/chat-ru.png)
 
 *Снимок интерфейса 0.3.14 создан в тестовом окружении; сообщения и подключения демонстрационные.* [Английский интерфейс](docs/screenshots/chat-en.png) · [Настройки](docs/screenshots/settings-ru.png).
