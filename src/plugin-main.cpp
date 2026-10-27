@@ -286,6 +286,8 @@ public:
         auto* usageCard=card();usageCard->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Maximum);auto* usageLayout=new QVBoxLayout(usageCard);usageLayout->setContentsMargins(8,5,8,5);usageLayout->setSpacing(2);usageTitle_=sectionTitle("Нагрузка плагина");usageLayout->addWidget(usageTitle_);auto* metrics=new QHBoxLayout;metrics->setSpacing(4);auto* cpuName=new QLabel("CPU");cpuName->setObjectName("Hint");metrics->addWidget(cpuName);cpuValue_=new QLabel("—");metrics->addWidget(cpuValue_);metrics->addStretch();memoryName_=new QLabel("Память данных");memoryName_->setObjectName("Hint");metrics->addWidget(memoryName_);memoryValue_=new QLabel("—");metrics->addWidget(memoryValue_);usageLayout->addLayout(metrics);usageCard_=usageCard;layout->addWidget(usageCard);
         auto* footer=new QVBoxLayout;footer->setContentsMargins(0,0,0,0);footer->setSpacing(0);auto* version=new QLabel("developed by <a href=\"https://www.youtube.com/channel/UCTAKYR3T2Ud8zZgNShgQfyw/\" style=\"color:#59dfff;text-decoration:none;\">OTMOPOZOK</a> · v" STREAM_CHAT_VERSION);version->setObjectName("Credit");version->setTextFormat(Qt::RichText);version->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::LinksAccessibleByKeyboard);version->setOpenExternalLinks(true);version->setAlignment(Qt::AlignCenter);version->setFixedHeight(20);footer->addWidget(version);traffic_=new QLabel;traffic_->setAlignment(Qt::AlignCenter);traffic_->setFixedHeight(16);traffic_->setStyleSheet("color:#72e9f4;font-size:10px;background:#080f18;");traffic_->setToolTip("Трафик HTTP и WebSocket этого плагина с запуска OBS; без видео и сетевых заголовков");footer->addWidget(traffic_);layout->addLayout(footer);
         batch_.setInterval(20);batch_.setSingleShot(true);trafficTimer_.setInterval(2000);
+        emoteRedraw_.setSingleShot(true);emoteRedraw_.setInterval(120);
+        connect(&emoteRedraw_,&QTimer::timeout,this,[this]{redrawMessages();});
         connect(&batch_,&QTimer::timeout,this,[this]{flush();});
         connect(scrollBottom_,&QPushButton::clicked,this,[this]{messages_->verticalScrollBar()->setValue(messages_->verticalScrollBar()->maximum());unread_=0;updateScrollButton();});
         connect(messages_->verticalScrollBar(),&QScrollBar::valueChanged,this,[this]{if(redrawing_)return;if(atBottom())unread_=0;updateScrollButton();});
@@ -313,8 +315,8 @@ public:
     }
     void setStreaming(bool active){if(streaming_==active)return;streaming_=active;seenThisStream_=false;twitch_.setStreamActive(active);youtube_.setStreamActive(active);refresh();}
 protected:
-    void showEvent(QShowEvent* event)override{QWidget::showEvent(event);setStreaming(anyStreamingOutput());twitch_.setVisible(true);youtube_.setVisible(true);QTimer::singleShot(0,this,[this]{if(isVisible()){twitch_.setVisible(true);youtube_.setVisible(true);refresh();}});trafficTimer_.start();updateTraffic();updateMetrics();if(!pending_.isEmpty())batch_.start();}
-    void hideEvent(QHideEvent* event)override{twitch_.setVisible(false);youtube_.setVisible(false);batch_.stop();trafficTimer_.stop();if(activeSends_)delivery_->setText(english_?"Dock hidden: delivery unconfirmed. No automatic retry.":"Панель скрыта: результат отправки не подтверждён. Автоматического повтора нет.");activeSends_=0;refresh();QWidget::hideEvent(event);}
+    void showEvent(QShowEvent* event)override{QWidget::showEvent(event);setStreaming(anyStreamingOutput());twitch_.setVisible(true);youtube_.setVisible(true);QTimer::singleShot(0,this,[this]{if(isVisible()){twitch_.setVisible(true);youtube_.setVisible(true);refresh();}});trafficTimer_.start();updateTraffic();updateMetrics();if(!pending_.isEmpty())batch_.start();if(!emotes_.isEmpty())emoteRedraw_.start();}
+    void hideEvent(QHideEvent* event)override{twitch_.setVisible(false);youtube_.setVisible(false);batch_.stop();trafficTimer_.stop();emoteRedraw_.stop();if(activeSends_)delivery_->setText(english_?"Dock hidden: delivery unconfirmed. No automatic retry.":"Панель скрыта: результат отправки не подтверждён. Автоматического повтора нет.");activeSends_=0;refresh();QWidget::hideEvent(event);}
 private:
     void applyChatTextSize(){
         QFont font=messages_->font();font.setPixelSize(std::max(9,12*textScale_/100));
@@ -403,7 +405,7 @@ private:
             QPixmap image;if(ok)image.loadFromData(bytes,"PNG");reply->deleteLater();
             if(image.isNull()||image.width()>128||image.height()>128){failedEmotes_.insert(id);return;}
             emotes_.insert(id,image.scaled(20,20,Qt::KeepAspectRatio,Qt::SmoothTransformation));
-            redrawMessages();
+            if(isVisible()&&!emoteRedraw_.isActive())emoteRedraw_.start();
         });
     }
     void updateMetrics(){
@@ -501,7 +503,7 @@ private:
     sc::TwitchChat twitch_;sc::YouTubeChat youtube_;QStackedLayout* pages_=nullptr;QTextEdit* messages_=nullptr;QLabel* twitchStatus_=nullptr;QLabel* youtubeStatus_=nullptr;QLabel* twitchViewers_=nullptr;QLabel* youtubeViewers_=nullptr;QLabel* code_=nullptr;QLabel* delivery_=nullptr;QLabel* totalCount_=nullptr;QLabel* twitchCount_=nullptr;QLabel* youtubeCount_=nullptr;QLabel* traffic_=nullptr;QLabel* cpuValue_=nullptr;QLabel* memoryValue_=nullptr;QLabel* chatTitle_=nullptr;QLabel* recipientHint_=nullptr;QLabel* usageTitle_=nullptr;QLabel* memoryName_=nullptr;QWidget* usageCard_=nullptr;QPushButton* settings_=nullptr;QPushButton* scrollBottom_=nullptr;
     QLineEdit* input_=nullptr;QAbstractButton* target_=nullptr;QPushButton* send_=nullptr;QPushButton* login_=nullptr;QPushButton* logout_=nullptr;
     QAbstractButton* youtubeTarget_=nullptr;QComboBox* broadcast_=nullptr;QPushButton* googleLogin_=nullptr;QPushButton* googleLogout_=nullptr;
-    QQueue<sc::ChatMessage> history_,pending_;QTimer batch_,trafficTimer_;QElapsedTimer usageClock_;QNetworkAccessManager emoteHttp_;QHash<QString,QPixmap> emotes_;QSet<QString> pendingEmotes_,failedEmotes_;std::uint64_t lastCpuNs_=0;int activeSends_=0,unread_=0,textScale_=100;bool allSent_=false,twitchSent_=false,youtubeSent_=false;bool streaming_=false,seenThisStream_=false,english_=false,redrawing_=false;QString language_="auto";quint64 twitchMessages_=0,youtubeMessages_=0;QStringList results_;
+    QQueue<sc::ChatMessage> history_,pending_;QTimer batch_,trafficTimer_,emoteRedraw_;QElapsedTimer usageClock_;QNetworkAccessManager emoteHttp_;QHash<QString,QPixmap> emotes_;QSet<QString> pendingEmotes_,failedEmotes_;std::uint64_t lastCpuNs_=0;int activeSends_=0,unread_=0,textScale_=100;bool allSent_=false,twitchSent_=false,youtubeSent_=false;bool streaming_=false,seenThisStream_=false,english_=false,redrawing_=false;QString language_="auto";quint64 twitchMessages_=0,youtubeMessages_=0;QStringList results_;
 };
 #ifndef STREAM_CHAT_PREVIEW
 QPointer<ChatDock> dock;QString tlsPath;
