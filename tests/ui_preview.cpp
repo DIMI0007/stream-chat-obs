@@ -32,6 +32,10 @@ int main(int argc,char** argv){
         if(!messages||!jump)return 6;
         auto* settingsButton=previewDock.findChild<QPushButton*>("Settings");
         if(!settingsButton)return 10;
+        const auto badges=previewDock.findChildren<PlatformBadge*>();
+        if(badges.isEmpty()||badges.first()->size()!=QSize(28,28)||
+           settingsButton->size()!=QSize(30,28)||settingsButton->iconSize()!=QSize(19,19)||
+           settingsButton->y()!=badges.first()->y())return 16;
         const QString interfaceStyle=previewDock.styleSheet();
         settingsButton->click();app.processEvents();
         auto* settingsPage=previewDock.findChild<QWidget*>("SettingsPage");

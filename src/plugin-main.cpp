@@ -89,7 +89,7 @@ QPushButton#Primary:hover { background:#8af9d0; border-color:#c7ffea; }
 QPushButton#Primary:disabled { color:#71879b; background:#1a2b39; border-color:#314251; }
 QPushButton#Disconnect { color:#8ea1c0; background:#111b28; border:1px solid #304057; border-radius:7px; min-width:24px; max-width:24px; min-height:24px; max-height:24px; padding:0; font-size:16px; font-weight:700; }
 QPushButton#Disconnect:hover { color:#ff8d96; background:#2a1820; border-color:#8d4350; }
-QPushButton#Settings { color:#e1ebff; background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #202a3b,stop:1 #141d2b); border:1px solid #39465d; border-radius:8px; min-width:30px; max-width:30px; min-height:28px; max-height:28px; padding:0; }
+QPushButton#Settings { color:#e1ebff; background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #202a3b,stop:1 #141d2b); border:1px solid #39465d; border-radius:8px; padding:0; }
 QPushButton#Settings:hover { background:#26344d; border-color:#6476a0; }
 QPushButton#ScrollBottom { color:#b7efff; background:#17283a; border:1px solid #34627b; border-radius:7px; min-height:18px; max-height:18px; padding:0 6px; font-size:10px; }
 QPushButton#ScrollBottom:hover { color:#ffffff; background:#24405a; }
