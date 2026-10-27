@@ -18,6 +18,15 @@ int main(int argc,char** argv){
     const QString config=output+"/preview-config";
     if(!QDir().mkpath(config))return 4;
     qputenv("STREAM_CHAT_PREVIEW_CONFIG",config.toUtf8());
+    {QSettings settings(config+"/ui.ini",QSettings::IniFormat);settings.setValue("language","ru");settings.sync();}
+    {
+        ChatDock narrow;narrow.resize(275,600);narrow.show();app.processEvents();
+        auto* chat=narrow.findChild<QTextEdit*>();
+        if(narrow.width()!=275||!chat||chat->lineWrapMode()!=QTextEdit::WidgetWidth||
+           chat->wordWrapMode()!=QTextOption::WrapAtWordBoundaryOrAnywhere)return 17;
+        if(!narrow.grab().save(output+"/chat-narrow-ru.png"))return 18;
+        narrow.hide();app.processEvents();
+    }
     for(const auto& language:{QString("ru"),QString("en")}){
         {QSettings settings(config+"/ui.ini",QSettings::IniFormat);settings.setValue("language",language);settings.setValue("textScale",100);settings.sync();}
         ChatDock previewDock;previewDock.resize(360,740);previewDock.show();app.processEvents();
