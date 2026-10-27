@@ -166,8 +166,7 @@ void YouTubeChat::openStream(){
         const int http=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         const QByteArray grpc=reply->rawHeader("grpc-status");stream_=nullptr;reply->deleteLater();ready_=false;Q_EMIT changed();
         if(http==401||grpc=="16"){if(authRetries_++<1){refresh();return;}setStatus("YouTube: требуется повторный вход");return;}
-        if(http==403||grpc=="7"||grpc=="8"||http==429){setStatus("YouTube: доступ или квота API ограничены; автоматические повторы остановлены");return;}
-        if(http>=400&&http<500&&http!=408){setStatus(QString("YouTube: ошибка чата (HTTP %1)").arg(http));return;}
+        if(grpc=="8"||http==429){setStatus("YouTube: квота API ограничена; автоматические повторы остановлены");return;}
         startFallback();
     });
     const QPointer<QNetworkReply> expected=reply;
