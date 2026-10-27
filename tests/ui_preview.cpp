@@ -6,6 +6,7 @@
 #include <QScrollBar>
 #include <QTextEdit>
 #include <QPushButton>
+#include <QSlider>
 #include "../src/plugin-main.cpp"
 
 int main(int argc,char** argv){
@@ -18,7 +19,7 @@ int main(int argc,char** argv){
     if(!QDir().mkpath(config))return 4;
     qputenv("STREAM_CHAT_PREVIEW_CONFIG",config.toUtf8());
     for(const auto& language:{QString("ru"),QString("en")}){
-        {QSettings settings(config+"/ui.ini",QSettings::IniFormat);settings.setValue("language",language);settings.sync();}
+        {QSettings settings(config+"/ui.ini",QSettings::IniFormat);settings.setValue("language",language);settings.setValue("textScale",100);settings.sync();}
         ChatDock previewDock;previewDock.resize(360,740);previewDock.show();app.processEvents();
         sc::ChatMessage twitch{"Twitch","preview-1","viewer-1","Viewer","Привет из Twitch!"};
         twitch.sentAt=QDateTime(QDate(2026,10,26),QTime(14,32),Qt::LocalTime);
@@ -29,6 +30,19 @@ int main(int argc,char** argv){
         if(!previewDock.grab().save(output+"/chat-"+language+".png"))return 5;
         auto* messages=previewDock.findChild<QTextEdit*>();auto* jump=previewDock.findChild<QPushButton*>("ScrollBottom");
         if(!messages||!jump)return 6;
+        auto* settingsButton=previewDock.findChild<QPushButton*>("Settings");
+        if(!settingsButton)return 10;
+        const QString interfaceStyle=previewDock.styleSheet();
+        settingsButton->click();app.processEvents();
+        auto* settingsPage=previewDock.findChild<QWidget*>("SettingsPage");
+        auto* slider=settingsPage?settingsPage->findChild<QSlider*>():nullptr;
+        if(!settingsPage||!settingsPage->isVisible()||!slider)return 11;
+        if(!previewDock.grab().save(output+"/settings-"+language+".png"))return 12;
+        slider->setValue(140);app.processEvents();
+        if(messages->document()->defaultFont().pixelSize()!=16||previewDock.styleSheet()!=interfaceStyle)return 13;
+        auto* back=settingsPage->findChild<QPushButton*>();if(!back)return 14;
+        back->click();app.processEvents();
+        if(!messages->isVisible())return 15;
         for(int i=0;i<70;++i){auto next=twitch;next.id="preview-"+QString::number(i+3);previewDock.previewAppend(next);}
         previewDock.previewRedraw();
         if(messages->document()->resource(QTextDocument::ImageResource,QUrl("stream-chat://icon/twitch")).value<QPixmap>().isNull())return 9;

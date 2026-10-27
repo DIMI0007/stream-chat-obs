@@ -32,13 +32,14 @@ private:
     void request(const QUrl& url,const QByteArray& method,const QByteArray& body,bool authorized,Reply callback);
     void setStatus(const QString& value);bool saveTokens(const QJsonObject& tokens);void refresh();
     void openStream();void stopStream();void stopNetwork();void receive();void retry();
+    void startFallback();void pollFallback();
     void pollViewers();
     SecureStore vault_;QJsonObject tokens_;QNetworkAccessManager http_;OAuthLoopback login_;
     QSet<QNetworkReply*> replies_;QPointer<QNetworkReply> stream_;youtube_wire::Frames frames_;
-    QTimer retry_,expiry_,search_,viewerTimer_;QString status_="YouTube: не подключён",verifier_,chatId_,pageToken_,videoId_;
+    QTimer retry_,expiry_,search_,viewerTimer_,fallbackTimer_;QString status_="YouTube: не подключён",verifier_,chatId_,pageToken_,videoId_;
     QHash<QString,QString> chatVideos_;QDateTime viewerUpdated_;int viewerCount_=-1;
     QQueue<QString> seenOrder_;QSet<QString> seen_;quint64 generation_=0;
-    bool visible_=false,ready_=false,refreshing_=false,finding_=false,streamActive_=false,viewerRequest_=false;int attempts_=0,authRetries_=0;
+    bool visible_=false,ready_=false,refreshing_=false,finding_=false,streamActive_=false,viewerRequest_=false,fallback_=false,fallbackPending_=false;int attempts_=0,authRetries_=0;
 };
 }
 
