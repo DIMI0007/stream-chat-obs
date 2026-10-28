@@ -358,7 +358,9 @@ private:
         auto* outer=new QVBoxLayout(page);outer->setContentsMargins(8,8,8,8);outer->setSpacing(8);
         auto* head=new QHBoxLayout;auto* back=new QPushButton(english_?"← Back":"← Назад");head->addWidget(back);auto* title=new QLabel(english_?"Settings":"Настройки");title->setObjectName("Title");head->addWidget(title,1);outer->addLayout(head);
         auto* settingsScroll=new QScrollArea;settingsScroll->setWidgetResizable(true);settingsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        auto* settingsContent=new QWidget;settingsScroll->setWidget(settingsContent);outer->addWidget(settingsScroll,1);
+        settingsScroll->setStyleSheet("QScrollArea{border:0;background:#080f18;} QCheckBox{color:#dfe8ff;background:transparent;} QLineEdit{color:#dfe8ff;background:#0c1420;border:1px solid #344865;border-radius:5px;padding:4px;}");
+        settingsScroll->viewport()->setStyleSheet("background:#080f18;");
+        auto* settingsContent=new QWidget;settingsContent->setObjectName("SettingsContent");settingsContent->setStyleSheet("QWidget#SettingsContent{background:#080f18;}");settingsScroll->setWidget(settingsContent);outer->addWidget(settingsScroll,1);
         outer=new QVBoxLayout(settingsContent);outer->setContentsMargins(0,0,0,0);outer->setSpacing(8);
         connect(back,&QPushButton::clicked,page,[this,page]{pages_->setCurrentIndex(0);pages_->removeWidget(page);page->deleteLater();});
         auto* card=new QWidget(page);card->setObjectName("LanguageCard");outer->addWidget(card);
@@ -410,6 +412,11 @@ private:
         auto* names=new QLineEdit(mentionNames_);names->setMaxLength(500);names->setPlaceholderText(english_?"Twitch login is detected automatically":"Имя Twitch определяется автоматически");filterLayout->addWidget(names);
         auto* hideBots=new QCheckBox(english_?"Hide listed bots":"Скрывать ботов из списка");hideBots->setChecked(hideBots_);filterLayout->addWidget(hideBots);
         auto* bots=new QLineEdit(botNames_);bots->setMaxLength(1000);bots->setToolTip(english_?"Exact account names, separated by commas":"Точные имена аккаунтов через запятую");filterLayout->addWidget(bots);outer->addWidget(filters);
+        names->setCursorPosition(0);bots->setCursorPosition(0);
+        for(auto* choice:*choices)connect(choice,&QPushButton::clicked,page,[this,highlight,namesLabel,names,hideBots,bots]{
+            highlight->setText(english_?"Highlight mentions":"Выделять упоминания");namesLabel->setText(english_?"Your names, separated by commas":"Ваши имена через запятую");
+            names->setPlaceholderText(english_?"Twitch login is detected automatically":"Имя Twitch определяется автоматически");hideBots->setText(english_?"Hide listed bots":"Скрывать ботов из списка");bots->setToolTip(english_?"Exact account names, separated by commas":"Точные имена аккаунтов через запятую");
+        });
         auto saveFilters=[this,highlight,names,hideBots,bots]{
             highlightMentions_=highlight->isChecked();mentionNames_=names->text();hideBots_=hideBots->isChecked();botNames_=bots->text();
             QSettings saved(configPath("ui.ini"),QSettings::IniFormat);saved.setValue("highlightMentions",highlightMentions_);saved.setValue("mentionNames",mentionNames_);saved.setValue("hideBots",hideBots_);saved.setValue("botNames",botNames_);redrawMessages();
