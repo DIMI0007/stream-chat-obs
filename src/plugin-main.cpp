@@ -58,6 +58,15 @@
 #include <thread>
 
 #ifndef STREAM_CHAT_PREVIEW
+extern "C" __declspec(dllexport) bool stream_chat_telemetry_v1(std::uint64_t* sent,std::uint64_t* received){
+    if(!sent||!received)return false;
+    *sent=sc::traffic::sent.load(std::memory_order_relaxed);
+    *received=sc::traffic::received.load(std::memory_order_relaxed);
+    return true;
+}
+#endif
+
+#ifndef STREAM_CHAT_PREVIEW
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("stream-chat-obs", "en-US")
 #endif
