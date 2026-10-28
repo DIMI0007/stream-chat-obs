@@ -64,5 +64,13 @@ int main(int argc,char** argv){
         jump->click();app.processEvents();if(jump->isVisible())return 8;
         previewDock.hide();app.processEvents();
     }
+    {QSettings settings(config+"/ui.ini",QSettings::IniFormat);settings.setValue("hideBots",true);settings.setValue("botNames","Nightbot");settings.setValue("mentionNames","Streamer");settings.setValue("highlightMentions",true);settings.sync();}
+    {ChatDock filters;filters.resize(360,740);filters.show();app.processEvents();
+        filters.previewAppend(sc::ChatMessage{"Twitch","bot","bot","Nightbot","hidden bot message"});
+        filters.previewAppend(sc::ChatMessage{"YouTube","mention","guest","Guest","Hello @Streamer!"});
+        auto* messages=filters.findChild<QTextEdit*>();if(!messages||messages->toPlainText().contains("hidden bot message")||!messages->toPlainText().contains("Hello @Streamer!"))return 19;
+        QTextCursor cursor(messages->document());cursor.movePosition(QTextCursor::Start);if(cursor.blockFormat().background().color()!=QColor("#193b34"))return 20;
+        if(!filters.grab().save(output+"/chat-mentions.png"))return 21;
+    }
     return 0;
 }

@@ -24,6 +24,7 @@ public:
     void signOut();
     void send(const QString& text);
     bool ready()const{return ready_;}
+    QString accountLogin()const{return accountLogin_;}
     QString status()const{return status_;}
     int viewerCount()const{return viewerCount_;}
     bool viewerFresh()const{return viewerUpdated_.isValid()&&viewerUpdated_.secsTo(QDateTime::currentDateTimeUtc())<90;}
@@ -54,7 +55,7 @@ private:
     QPointer<QWebSocket> socket_,replacement_;
     QTimer deviceTimer_,retryTimer_,validationTimer_,watchdog_,viewerTimer_;
     QQueue<QString> seenOrder_;QSet<QString> seen_;
-    QString userId_,status_="Twitch: не подключён",deviceCode_;
+    QString userId_,accountLogin_,status_="Twitch: не подключён",deviceCode_;
     QDateTime deviceExpires_;quint64 generation_=0;
     QDateTime viewerUpdated_;int viewerCount_=-1;
     int deviceInterval_=5,retries_=0,keepalive_=10;

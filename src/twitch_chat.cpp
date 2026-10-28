@@ -122,7 +122,8 @@ void TwitchChat::validate(bool allowRefresh){
         }
         userId_=data.value("user_id").toString();validationTimer_.start();
         if(visible_&&streamActive_&&!viewerTimer_.isActive()){viewerTimer_.start();pollViewers();}
-        if(visible_&&!socket_){setStatus("Twitch: подключаем чат "+data.value("login").toString());openSocket();}
+        accountLogin_=data.value("login").toString();
+        if(visible_&&!socket_){setStatus("Twitch: подключаем чат "+accountLogin_);openSocket();}
         else if(visible_&&socket_&&subscribed_){ready_=true;setStatus("Twitch: чат подключён");Q_EMIT changed();}
         else if(!visible_)setStatus("Twitch: вход выполнен, чат приостановлен");
     });

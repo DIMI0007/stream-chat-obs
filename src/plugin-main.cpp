@@ -56,6 +56,9 @@
 #include <QFrame>
 #include <algorithm>
 #include <thread>
+#include <QCheckBox>
+#include <QScrollArea>
+#include <QTextBlockFormat>
 
 #ifndef STREAM_CHAT_PREVIEW
 extern "C" __declspec(dllexport) bool stream_chat_telemetry_v1(std::uint64_t* sent,std::uint64_t* received){
@@ -258,6 +261,19 @@ bool anyStreamingOutput(){
     return active;
 #endif
 }
+class WrappedChatEdit final : public QTextEdit {
+public:
+    void setPlaceholderText(const QString& text){placeholder_=text;QTextEdit::setPlaceholderText({});viewport()->update();}
+protected:
+    void paintEvent(QPaintEvent* event)override{
+        QTextEdit::paintEvent(event);
+        if(!document()->isEmpty()||placeholder_.isEmpty())return;
+        QPainter painter(viewport());painter.setPen(QColor("#8ea1c0"));painter.setFont(font());
+        painter.drawText(viewport()->rect().adjusted(8,8,-8,-8),Qt::AlignLeft|Qt::AlignTop|Qt::TextWordWrap,placeholder_);
+    }
+private:
+    QString placeholder_;
+};
 class ChatDock final : public QWidget {
 public:
 #ifdef STREAM_CHAT_PREVIEW
@@ -265,7 +281,9 @@ public:
     void previewRedraw(){redrawMessages();}
 #endif
     ChatDock():twitch_(configPath("twitch-account.dat"),this),youtube_(configPath("youtube-account.dat"),this){
-        {QSettings saved(configPath("ui.ini"),QSettings::IniFormat);textScale_=std::clamp(saved.value("textScale",100).toInt(),80,140);}
+        {QSettings saved(configPath("ui.ini"),QSettings::IniFormat);textScale_=std::clamp(saved.value("textScale",100).toInt(),80,140);
+            mentionNames_=saved.value("mentionNames").toString();highlightMentions_=saved.value("highlightMentions",true).toBool();
+            hideBots_=saved.value("hideBots",false).toBool();botNames_=saved.value("botNames","Nightbot, WizeBot, BotRix, BotRixOfficial, StreamElements, Streamlabs, Moobot").toString();}
         setObjectName("StreamChatRoot");setMinimumWidth(275);setStyleSheet(ChatStyle);
         pages_=new QStackedLayout(this);auto* chatPage=new QWidget(this);pages_->addWidget(chatPage);
         auto* layout=new QVBoxLayout(chatPage);layout->setContentsMargins(8,8,8,8);layout->setSpacing(5);
@@ -288,11 +306,12 @@ public:
             refresh();
         });
         auto* chatCard=card();auto* chatLayout=new QVBoxLayout(chatCard);chatLayout->setContentsMargins(8,7,8,8);chatLayout->setSpacing(5);auto* chatHead=new QHBoxLayout;chatTitle_=sectionTitle("Чат");chatHead->addWidget(chatTitle_);chatHead->addStretch();scrollBottom_=new QPushButton("↓");scrollBottom_->setObjectName("ScrollBottom");scrollBottom_->setToolTip("К новым сообщениям");scrollBottom_->hide();chatHead->addWidget(scrollBottom_);totalCount_=new QLabel;totalCount_->setObjectName("Hint");totalCount_->setToolTip("Всего сообщений за этот запуск OBS");chatHead->addWidget(totalCount_);chatLayout->addLayout(chatHead);
-        messages_=new QTextEdit;messages_->setReadOnly(true);messages_->setAcceptRichText(false);messages_->setFocusPolicy(Qt::NoFocus);messages_->setTextInteractionFlags(Qt::NoTextInteraction);messages_->setContextMenuPolicy(Qt::NoContextMenu);messages_->setCursor(Qt::ArrowCursor);messages_->setLineWrapMode(QTextEdit::WidgetWidth);messages_->setWordWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);messages_->document()->setMaximumBlockCount(500);messages_->setPlaceholderText("Здесь появятся сообщения. История хранится только до закрытия OBS.");
+        messages_=new WrappedChatEdit;messages_->setReadOnly(true);messages_->setAcceptRichText(false);messages_->setFocusPolicy(Qt::NoFocus);messages_->setTextInteractionFlags(Qt::NoTextInteraction);messages_->setContextMenuPolicy(Qt::NoContextMenu);messages_->setCursor(Qt::ArrowCursor);messages_->setLineWrapMode(QTextEdit::WidgetWidth);messages_->setWordWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);messages_->document()->setMaximumBlockCount(500);messages_->setPlaceholderText("Здесь появятся сообщения. История хранится только до закрытия OBS.");
         applyChatTextSize();
         messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/twitch"),messagePlatformIcon("Twitch"));messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/youtube"),messagePlatformIcon("YouTube"));chatLayout->addWidget(messages_,1);
         auto* targets=new QHBoxLayout;targets->setSpacing(6);recipientHint_=new QLabel("Куда отправлять");recipientHint_->setObjectName("Hint");targets->addWidget(recipientHint_);target_=new PlatformToggle("Twitch");target_->setChecked(true);targets->addWidget(target_);twitchCount_=new QLabel;twitchCount_->setObjectName("Hint");twitchCount_->setToolTip("Сообщения Twitch за этот запуск OBS");targets->addWidget(twitchCount_);youtubeTarget_=new PlatformToggle("YouTube");youtubeTarget_->setChecked(true);targets->addWidget(youtubeTarget_);youtubeCount_=new QLabel;youtubeCount_->setObjectName("Hint");youtubeCount_->setToolTip("Сообщения YouTube за этот запуск OBS");targets->addWidget(youtubeCount_);targets->addStretch();chatLayout->addLayout(targets);layout->addWidget(chatCard,1);
-        auto* composerCard=card();auto* composerLayout=new QVBoxLayout(composerCard);composerLayout->setContentsMargins(8,7,8,8);composerLayout->setSpacing(5);auto* composer=new QHBoxLayout;input_=new QLineEdit;input_->setMaxLength(500);input_->setPlaceholderText("Сообщение на стриминговые сервисы");send_=new QPushButton("Отправить");send_->setObjectName("Primary");composer->addWidget(input_,1);composer->addWidget(send_);composerLayout->addLayout(composer);delivery_=new QLabel;delivery_->setObjectName("Hint");delivery_->setWordWrap(true);delivery_->setTextFormat(Qt::PlainText);delivery_->hide();composerLayout->addWidget(delivery_);layout->addWidget(composerCard);
+        lastMessage_=new QLabel;lastMessage_->setObjectName("Hint");lastMessage_->setWordWrap(true);chatLayout->addWidget(lastMessage_);
+        auto* composerCard=card();auto* composerLayout=new QVBoxLayout(composerCard);composerLayout->setContentsMargins(8,7,8,8);composerLayout->setSpacing(5);auto* composer=new QHBoxLayout;input_=new QLineEdit;input_->setMaxLength(500);input_->setPlaceholderText("Написать в чат…");send_=new QPushButton("Отправить");send_->setObjectName("Primary");composer->addWidget(input_,1);composer->addWidget(send_);composerLayout->addLayout(composer);delivery_=new QLabel;delivery_->setObjectName("Hint");delivery_->setWordWrap(true);delivery_->setTextFormat(Qt::PlainText);delivery_->hide();composerLayout->addWidget(delivery_);layout->addWidget(composerCard);
         auto* usageCard=card();usageCard->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Maximum);auto* usageLayout=new QVBoxLayout(usageCard);usageLayout->setContentsMargins(8,5,8,5);usageLayout->setSpacing(2);usageTitle_=sectionTitle("Нагрузка плагина");usageLayout->addWidget(usageTitle_);auto* metrics=new QHBoxLayout;metrics->setSpacing(4);auto* cpuName=new QLabel("CPU");cpuName->setObjectName("Hint");metrics->addWidget(cpuName);cpuValue_=new QLabel("—");metrics->addWidget(cpuValue_);metrics->addStretch();memoryName_=new QLabel("Память данных");memoryName_->setObjectName("Hint");metrics->addWidget(memoryName_);memoryValue_=new QLabel("—");metrics->addWidget(memoryValue_);usageLayout->addLayout(metrics);usageCard_=usageCard;layout->addWidget(usageCard);
         auto* footer=new QVBoxLayout;footer->setContentsMargins(0,0,0,0);footer->setSpacing(0);auto* version=new QLabel("developed by <a href=\"https://www.youtube.com/channel/UCTAKYR3T2Ud8zZgNShgQfyw/\" style=\"color:#59dfff;text-decoration:none;\">OTMOPOZOK</a> · v" STREAM_CHAT_VERSION);version->setObjectName("Credit");version->setTextFormat(Qt::RichText);version->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::LinksAccessibleByKeyboard);version->setOpenExternalLinks(true);version->setAlignment(Qt::AlignCenter);version->setFixedHeight(20);footer->addWidget(version);traffic_=new QLabel;traffic_->setAlignment(Qt::AlignCenter);traffic_->setFixedHeight(16);traffic_->setStyleSheet("color:#72e9f4;font-size:10px;background:#080f18;");traffic_->setToolTip("Трафик HTTP и WebSocket этого плагина с запуска OBS; без видео и сетевых заголовков");footer->addWidget(traffic_);layout->addLayout(footer);
         batch_.setInterval(20);batch_.setSingleShot(true);trafficTimer_.setInterval(2000);
@@ -301,7 +320,7 @@ public:
         connect(&batch_,&QTimer::timeout,this,[this]{flush();});
         connect(scrollBottom_,&QPushButton::clicked,this,[this]{messages_->verticalScrollBar()->setValue(messages_->verticalScrollBar()->maximum());unread_=0;updateScrollButton();});
         connect(messages_->verticalScrollBar(),&QScrollBar::valueChanged,this,[this]{if(redrawing_)return;if(atBottom())unread_=0;updateScrollButton();});
-        connect(&trafficTimer_,&QTimer::timeout,this,[this]{setStreaming(anyStreamingOutput());updateTraffic();updateMetrics();});
+        connect(&trafficTimer_,&QTimer::timeout,this,[this]{setStreaming(anyStreamingOutput());updateTraffic();updateMetrics();updateLastMessage();});
         connect(send_,&QPushButton::clicked,this,[this]{send();});connect(input_,&QLineEdit::returnPressed,this,[this]{send();});
         connect(target_,&QAbstractButton::toggled,this,[this]{refresh();});
         connect(youtubeTarget_,&QAbstractButton::toggled,this,[this]{refresh();});
@@ -338,6 +357,9 @@ private:
         page->setStyleSheet("QWidget#SettingsPage{background:#080f18;color:#dfe8ff;} QWidget#LanguageCard{background:#0b131e;border:1px solid #263244;border-radius:8px;} QLabel{color:#dfe8ff;font-weight:700;} QPushButton{color:#dfe8ff;background:#172236;border:1px solid #354863;border-radius:7px;padding:5px 12px;} QPushButton#ActiveNav{background:#18234e;border-color:#7663ff;color:#ffffff;font-weight:700;}");
         auto* outer=new QVBoxLayout(page);outer->setContentsMargins(8,8,8,8);outer->setSpacing(8);
         auto* head=new QHBoxLayout;auto* back=new QPushButton(english_?"← Back":"← Назад");head->addWidget(back);auto* title=new QLabel(english_?"Settings":"Настройки");title->setObjectName("Title");head->addWidget(title,1);outer->addLayout(head);
+        auto* settingsScroll=new QScrollArea;settingsScroll->setWidgetResizable(true);settingsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        auto* settingsContent=new QWidget;settingsScroll->setWidget(settingsContent);outer->addWidget(settingsScroll,1);
+        outer=new QVBoxLayout(settingsContent);outer->setContentsMargins(0,0,0,0);outer->setSpacing(8);
         connect(back,&QPushButton::clicked,page,[this,page]{pages_->setCurrentIndex(0);pages_->removeWidget(page);page->deleteLater();});
         auto* card=new QWidget(page);card->setObjectName("LanguageCard");outer->addWidget(card);
         auto* layout=new QVBoxLayout(card);layout->setContentsMargins(8,6,8,8);layout->setSpacing(4);
@@ -382,6 +404,19 @@ private:
             textScale_=value;applyChatTextSize();redrawMessages();updatePreview();
             QSettings saved(configPath("ui.ini"),QSettings::IniFormat);saved.setValue("textScale",textScale_);saved.sync();
         });
+        auto* filters=new QWidget;filters->setObjectName("LanguageCard");auto* filterLayout=new QVBoxLayout(filters);
+        auto* highlight=new QCheckBox(english_?"Highlight mentions":"Выделять упоминания");highlight->setChecked(highlightMentions_);filterLayout->addWidget(highlight);
+        auto* namesLabel=new QLabel(english_?"Your names, separated by commas":"Ваши имена через запятую");namesLabel->setWordWrap(true);filterLayout->addWidget(namesLabel);
+        auto* names=new QLineEdit(mentionNames_);names->setMaxLength(500);names->setPlaceholderText(english_?"Twitch login is detected automatically":"Имя Twitch определяется автоматически");filterLayout->addWidget(names);
+        auto* hideBots=new QCheckBox(english_?"Hide listed bots":"Скрывать ботов из списка");hideBots->setChecked(hideBots_);filterLayout->addWidget(hideBots);
+        auto* bots=new QLineEdit(botNames_);bots->setMaxLength(1000);bots->setToolTip(english_?"Exact account names, separated by commas":"Точные имена аккаунтов через запятую");filterLayout->addWidget(bots);outer->addWidget(filters);
+        auto saveFilters=[this,highlight,names,hideBots,bots]{
+            highlightMentions_=highlight->isChecked();mentionNames_=names->text();hideBots_=hideBots->isChecked();botNames_=bots->text();
+            QSettings saved(configPath("ui.ini"),QSettings::IniFormat);saved.setValue("highlightMentions",highlightMentions_);saved.setValue("mentionNames",mentionNames_);saved.setValue("hideBots",hideBots_);saved.setValue("botNames",botNames_);redrawMessages();
+        };
+        connect(highlight,&QCheckBox::toggled,page,[saveFilters](bool){saveFilters();});
+        connect(hideBots,&QCheckBox::toggled,page,[saveFilters](bool){saveFilters();});
+        connect(names,&QLineEdit::editingFinished,page,saveFilters);connect(bots,&QLineEdit::editingFinished,page,saveFilters);
         outer->addStretch();
     }
     void applyLanguage(){
@@ -391,7 +426,7 @@ private:
         chatTitle_->setText(english_?"Chat":"Чат");recipientHint_->setText(english_?"Send to":"Куда отправлять");
         scrollBottom_->setToolTip(english_?"Jump to new messages":"К новым сообщениям");
         messages_->setPlaceholderText(english_?"Messages appear here. History is kept until OBS closes.":"Здесь появятся сообщения. История хранится только до закрытия OBS.");
-        input_->setPlaceholderText(english_?"Message to streaming platforms":"Сообщение на стриминговые сервисы");send_->setText(english_?"Send":"Отправить");
+        input_->setPlaceholderText(english_?"Write to chat…":"Написать в чат…");send_->setText(english_?"Send":"Отправить");
         usageTitle_->setText(english_?"Plugin usage":"Нагрузка плагина");memoryName_->setText(english_?"Data memory":"Память данных");
         usageCard_->setToolTip(english_?"CPU: measured plugin work; memory: tracked messages and buffers, not all OBS memory":"CPU — измеренные участки работы плагина; память — учтённые сообщения и буферы, не вся память OBS");
         traffic_->setToolTip(english_?"Plugin HTTP and WebSocket traffic since OBS started; excludes video and network headers":"Трафик HTTP и WebSocket этого плагина с запуска OBS; без видео и сетевых заголовков");
@@ -400,7 +435,24 @@ private:
         if(broadcast_->count())broadcast_->setItemText(0,english_?"Choose stream":"Выберите эфир");
         refresh();updateTraffic();updateMetrics();
     }
-    void updateTraffic(){traffic_->setText((english_?"Session traffic · ↑ ":"Трафик за сеанс · ↑ ")+volume(sc::traffic::sent.load(std::memory_order_relaxed),english_)+"  |  ↓ "+volume(sc::traffic::received.load(std::memory_order_relaxed),english_));}
+    static QStringList namesFrom(const QString& raw){
+        auto names=raw.split(QRegularExpression("[,;\\n]"),Qt::SkipEmptyParts);for(auto& name:names){name=name.trimmed();if(name.startsWith('@'))name.remove(0,1);}names.removeAll(QString());return names;
+    }
+    bool filteredBot(const sc::ChatMessage& message)const{
+        if(!hideBots_)return false;for(const auto& name:namesFrom(botNames_))if(name.compare(message.author,Qt::CaseInsensitive)==0)return true;return false;
+    }
+    bool mentioned(const QString& text)const{
+        if(!highlightMentions_)return false;auto names=namesFrom(mentionNames_);if(!twitch_.accountLogin().isEmpty())names.append(twitch_.accountLogin());
+        for(const auto& name:names){QRegularExpression match("(?<![\\p{L}\\p{N}_])@?"+QRegularExpression::escape(name)+"(?![\\p{L}\\p{N}_])",QRegularExpression::CaseInsensitiveOption|QRegularExpression::UseUnicodePropertiesOption);if(match.match(text).hasMatch())return true;}return false;
+    }
+    void updateLastMessage(){
+        if(!lastMessage_)return;
+        const auto age=lastReceived_.isValid()?std::max<qint64>(0,lastReceived_.secsTo(QDateTime::currentDateTimeUtc())):-1;
+        lastMessage_->setText(age<0?(english_?"No messages received this session":"За этот запуск сообщений ещё нет"):
+            (english_?"Last message: ":"Последнее сообщение: ")+(age<60?QString::number(age)+(english_?" sec ago":" сек. назад"):QString::number(age/60)+(english_?" min ago":" мин. назад")));
+        lastMessage_->setToolTip(english_?"Time since a message arrived; silence alone does not mean a connection failure":"Время с получения сообщения. Тишина в чате сама по себе не означает обрыв связи");
+    }
+    void updateTraffic(){updateLastMessage();traffic_->setText((english_?"Session traffic · ↑ ":"Трафик за сеанс · ↑ ")+volume(sc::traffic::sent.load(std::memory_order_relaxed),english_)+"  |  ↓ "+volume(sc::traffic::received.load(std::memory_order_relaxed),english_));}
     void requestEmote(const QString& id){
         if(id.isEmpty()||emotes_.contains(id)||pendingEmotes_.contains(id)||failedEmotes_.contains(id)||emotes_.size()+pendingEmotes_.size()+failedEmotes_.size()>=64)return;
         QNetworkRequest request(QUrl("https://static-cdn.jtvnw.net/emoticons/v2/"+id+"/static/dark/1.0"));
@@ -443,10 +495,12 @@ private:
         bar->setValue(bottom?bar->maximum():oldPosition);redrawing_=false;emotesDirty_=false;updateScrollButton();
     }
     void appendMessage(const sc::ChatMessage& message,bool fresh=true){
+        if(filteredBot(message))return;
         auto* bar=messages_->verticalScrollBar();const bool bottom=atBottom();const int oldPosition=bar->value();
         const bool wasRedrawing=redrawing_;redrawing_=true;
         auto text=message.text,author=message.author;text.replace('\n',' ');text.replace('\r',' ');author.replace('\n',' ');author.replace('\r',' ');
         QTextCursor cursor(messages_->document());cursor.movePosition(QTextCursor::End);if(!messages_->document()->isEmpty())cursor.insertBlock();
+        QTextBlockFormat block;block.setBackground(mentioned(message.text)?QColor("#193b34"):QColor(Qt::transparent));cursor.setBlockFormat(block);
         QTextImageFormat icon;icon.setName(message.platform=="YouTube"?"stream-chat://icon/youtube":"stream-chat://icon/twitch");icon.setWidth(14);icon.setHeight(14);cursor.insertImage(icon);cursor.insertText(" ");
         const bool youtube=message.platform=="YouTube";const QColor accent=youtube?QColor("#ff8491"):QColor("#b995ff");const QColor tint=youtube?QColor("#32181d"):QColor("#241b35");
         QTextCharFormat authorStyle;authorStyle.setForeground(accent);authorStyle.setBackground(tint);authorStyle.setFontWeight(QFont::DemiBold);cursor.insertText(" "+author+" ",authorStyle);
@@ -470,6 +524,10 @@ private:
     }
     void refresh(){
         paintStatus(twitchStatus_,twitch_.status(),"Twitch",twitch_.ready(),english_);paintStatus(youtubeStatus_,youtube_.status(),"YouTube",youtube_.ready(),english_);
+        if(youtube_.signedIn()&&!youtube_.ready()&&(youtube_.status().contains("начала эфира")||youtube_.status().contains("не найден"))){
+            youtubeStatus_->setText(english_?"● Account linked · waiting for live chat":"● Вход выполнен · ждём чат эфира");
+            youtubeStatus_->setToolTip(english_?"Account linked. Messages will appear after an active live chat is found.":"Аккаунт подключён. Сообщения появятся после обнаружения активного чата трансляции.");
+        }
         const QLocale ru(english_?QLocale::English:QLocale::Russian);
         twitchViewers_->setVisible(streaming_&&twitch_.viewerCount()>=0);
         youtubeViewers_->setVisible(streaming_&&youtube_.viewerCount()>=0);
@@ -504,16 +562,16 @@ private:
         --activeSends_;if(!activeSends_){if(allSent_)input_->clear();else {if(twitchSent_)target_->setChecked(false);if(youtubeSent_)youtubeTarget_->setChecked(false);}}
         delivery_->setText(results_.join('\n'));refresh();
     }
-    void flush(){sc::CpuScope cpu;int count=0;while(!pending_.isEmpty()&&count++<50){const auto message=pending_.dequeue();history_.enqueue(message);while(history_.size()>500)history_.dequeue();appendMessage(message);if(streaming_){if(message.platform=="Twitch")++twitchMessages_;else if(message.platform=="YouTube")++youtubeMessages_;seenThisStream_=true;}}refresh();if(!pending_.isEmpty())batch_.start();}
+    void flush(){sc::CpuScope cpu;int count=0;while(!pending_.isEmpty()&&count++<50){const auto message=pending_.dequeue();lastReceived_=QDateTime::currentDateTimeUtc();history_.enqueue(message);while(history_.size()>500)history_.dequeue();appendMessage(message);if(streaming_){if(message.platform=="Twitch")++twitchMessages_;else if(message.platform=="YouTube")++youtubeMessages_;seenThisStream_=true;}}refresh();if(!pending_.isEmpty())batch_.start();}
     template<class Predicate>void remove(Predicate predicate){
         history_.erase(std::remove_if(history_.begin(),history_.end(),predicate),history_.end());
         pending_.erase(std::remove_if(pending_.begin(),pending_.end(),predicate),pending_.end());
         redrawMessages();
     }
-    sc::TwitchChat twitch_;sc::YouTubeChat youtube_;QStackedLayout* pages_=nullptr;QTextEdit* messages_=nullptr;QLabel* twitchStatus_=nullptr;QLabel* youtubeStatus_=nullptr;QLabel* twitchViewers_=nullptr;QLabel* youtubeViewers_=nullptr;QLabel* code_=nullptr;QLabel* delivery_=nullptr;QLabel* totalCount_=nullptr;QLabel* twitchCount_=nullptr;QLabel* youtubeCount_=nullptr;QLabel* traffic_=nullptr;QLabel* cpuValue_=nullptr;QLabel* memoryValue_=nullptr;QLabel* chatTitle_=nullptr;QLabel* recipientHint_=nullptr;QLabel* usageTitle_=nullptr;QLabel* memoryName_=nullptr;QWidget* usageCard_=nullptr;QPushButton* settings_=nullptr;QPushButton* scrollBottom_=nullptr;
+    sc::TwitchChat twitch_;sc::YouTubeChat youtube_;QStackedLayout* pages_=nullptr;WrappedChatEdit* messages_=nullptr;QLabel* twitchStatus_=nullptr;QLabel* youtubeStatus_=nullptr;QLabel* twitchViewers_=nullptr;QLabel* youtubeViewers_=nullptr;QLabel* code_=nullptr;QLabel* delivery_=nullptr;QLabel* totalCount_=nullptr;QLabel* twitchCount_=nullptr;QLabel* youtubeCount_=nullptr;QLabel* traffic_=nullptr;QLabel* cpuValue_=nullptr;QLabel* memoryValue_=nullptr;QLabel* chatTitle_=nullptr;QLabel* recipientHint_=nullptr;QLabel* usageTitle_=nullptr;QLabel* memoryName_=nullptr;QWidget* usageCard_=nullptr;QPushButton* settings_=nullptr;QPushButton* scrollBottom_=nullptr;
     QLineEdit* input_=nullptr;QAbstractButton* target_=nullptr;QPushButton* send_=nullptr;QPushButton* login_=nullptr;QPushButton* logout_=nullptr;
     QAbstractButton* youtubeTarget_=nullptr;QComboBox* broadcast_=nullptr;QPushButton* googleLogin_=nullptr;QPushButton* googleLogout_=nullptr;
-    QQueue<sc::ChatMessage> history_,pending_;QTimer batch_,trafficTimer_,emoteRedraw_;QElapsedTimer usageClock_;QNetworkAccessManager emoteHttp_;QHash<QString,QPixmap> emotes_;QSet<QString> pendingEmotes_,failedEmotes_;std::uint64_t lastCpuNs_=0;int activeSends_=0,unread_=0,textScale_=100;bool allSent_=false,twitchSent_=false,youtubeSent_=false;bool streaming_=false,seenThisStream_=false,english_=false,redrawing_=false,emotesDirty_=false;QString language_="auto";quint64 twitchMessages_=0,youtubeMessages_=0;QStringList results_;
+    QLabel* lastMessage_=nullptr;QDateTime lastReceived_;QString mentionNames_,botNames_;bool highlightMentions_=true,hideBots_=false;QQueue<sc::ChatMessage> history_,pending_;QTimer batch_,trafficTimer_,emoteRedraw_;QElapsedTimer usageClock_;QNetworkAccessManager emoteHttp_;QHash<QString,QPixmap> emotes_;QSet<QString> pendingEmotes_,failedEmotes_;std::uint64_t lastCpuNs_=0;int activeSends_=0,unread_=0,textScale_=100;bool allSent_=false,twitchSent_=false,youtubeSent_=false;bool streaming_=false,seenThisStream_=false,english_=false,redrawing_=false,emotesDirty_=false;QString language_="auto";quint64 twitchMessages_=0,youtubeMessages_=0;QStringList results_;
 };
 #ifndef STREAM_CHAT_PREVIEW
 QPointer<ChatDock> dock;QString tlsPath;
