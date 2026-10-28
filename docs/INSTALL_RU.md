@@ -1,4 +1,4 @@
-# Установка Stream Chat 0.3.16 для OBS 33
+# Установка Stream Chat 0.3.17 для OBS 33
 
 1. Полностью закройте OBS Studio.
 2. В `C:\ProgramData\obs-studio\plugins\` удалите старую папку `stream-chat-obs`. Настройки аккаунтов хранятся отдельно в профиле пользователя OBS.

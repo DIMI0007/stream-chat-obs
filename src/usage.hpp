@@ -5,6 +5,7 @@
 
 namespace sc {
 inline std::atomic<std::uint64_t> measuredCpuNs{0};
+inline std::atomic<std::uint64_t> measuredDataBytes{0};
 inline bool threadCpuNs(std::uint64_t& value){
     FILETIME created,exited,kernel,user;
     if(!GetThreadTimes(GetCurrentThread(),&created,&exited,&kernel,&user))return false;

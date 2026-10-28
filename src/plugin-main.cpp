@@ -67,6 +67,14 @@ extern "C" __declspec(dllexport) bool stream_chat_telemetry_v1(std::uint64_t* se
     *received=sc::traffic::received.load(std::memory_order_relaxed);
     return true;
 }
+extern "C" __declspec(dllexport) bool stream_chat_telemetry_v2(std::uint64_t* sent,std::uint64_t* received,std::uint64_t* cpuNs,std::uint64_t* dataBytes){
+    if(!sent||!received||!cpuNs||!dataBytes)return false;
+    *sent=sc::traffic::sent.load(std::memory_order_relaxed);
+    *received=sc::traffic::received.load(std::memory_order_relaxed);
+    *cpuNs=sc::measuredCpuNs.load(std::memory_order_relaxed);
+    *dataBytes=sc::measuredDataBytes.load(std::memory_order_relaxed);
+    return true;
+}
 #endif
 
 #ifndef STREAM_CHAT_PREVIEW
@@ -312,15 +320,14 @@ public:
         auto* targets=new QHBoxLayout;targets->setSpacing(6);recipientHint_=new QLabel("Куда отправлять");recipientHint_->setObjectName("Hint");targets->addWidget(recipientHint_);target_=new PlatformToggle("Twitch");target_->setChecked(true);targets->addWidget(target_);twitchCount_=new QLabel;twitchCount_->setObjectName("Hint");twitchCount_->setToolTip("Сообщения Twitch за этот запуск OBS");targets->addWidget(twitchCount_);youtubeTarget_=new PlatformToggle("YouTube");youtubeTarget_->setChecked(true);targets->addWidget(youtubeTarget_);youtubeCount_=new QLabel;youtubeCount_->setObjectName("Hint");youtubeCount_->setToolTip("Сообщения YouTube за этот запуск OBS");targets->addWidget(youtubeCount_);targets->addStretch();chatLayout->addLayout(targets);layout->addWidget(chatCard,1);
         lastMessage_=new QLabel;lastMessage_->setObjectName("Hint");lastMessage_->setWordWrap(true);chatLayout->addWidget(lastMessage_);
         auto* composerCard=card();auto* composerLayout=new QVBoxLayout(composerCard);composerLayout->setContentsMargins(8,7,8,8);composerLayout->setSpacing(5);auto* composer=new QHBoxLayout;input_=new QLineEdit;input_->setMaxLength(500);input_->setPlaceholderText("Написать в чат…");send_=new QPushButton("Отправить");send_->setObjectName("Primary");composer->addWidget(input_,1);composer->addWidget(send_);composerLayout->addLayout(composer);delivery_=new QLabel;delivery_->setObjectName("Hint");delivery_->setWordWrap(true);delivery_->setTextFormat(Qt::PlainText);delivery_->hide();composerLayout->addWidget(delivery_);layout->addWidget(composerCard);
-        auto* usageCard=card();usageCard->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Maximum);auto* usageLayout=new QVBoxLayout(usageCard);usageLayout->setContentsMargins(8,5,8,5);usageLayout->setSpacing(2);usageTitle_=sectionTitle("Нагрузка плагина");usageLayout->addWidget(usageTitle_);auto* metrics=new QHBoxLayout;metrics->setSpacing(4);auto* cpuName=new QLabel("CPU");cpuName->setObjectName("Hint");metrics->addWidget(cpuName);cpuValue_=new QLabel("—");metrics->addWidget(cpuValue_);metrics->addStretch();memoryName_=new QLabel("Память данных");memoryName_->setObjectName("Hint");metrics->addWidget(memoryName_);memoryValue_=new QLabel("—");metrics->addWidget(memoryValue_);usageLayout->addLayout(metrics);usageCard_=usageCard;layout->addWidget(usageCard);
-        auto* footer=new QVBoxLayout;footer->setContentsMargins(0,0,0,0);footer->setSpacing(0);auto* version=new QLabel("developed by <a href=\"https://www.youtube.com/channel/UCTAKYR3T2Ud8zZgNShgQfyw/\" style=\"color:#59dfff;text-decoration:none;\">OTMOPOZOK</a> · v" STREAM_CHAT_VERSION);version->setObjectName("Credit");version->setTextFormat(Qt::RichText);version->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::LinksAccessibleByKeyboard);version->setOpenExternalLinks(true);version->setAlignment(Qt::AlignCenter);version->setFixedHeight(20);footer->addWidget(version);traffic_=new QLabel;traffic_->setAlignment(Qt::AlignCenter);traffic_->setFixedHeight(16);traffic_->setStyleSheet("color:#72e9f4;font-size:10px;background:#080f18;");traffic_->setToolTip("Трафик HTTP и WebSocket этого плагина с запуска OBS; без видео и сетевых заголовков");footer->addWidget(traffic_);layout->addLayout(footer);
+        auto* footer=new QVBoxLayout;footer->setContentsMargins(0,0,0,0);footer->setSpacing(0);auto* version=new QLabel("developed by <a href=\"https://www.youtube.com/channel/UCTAKYR3T2Ud8zZgNShgQfyw/\" style=\"color:#59dfff;text-decoration:none;\">OTMOPOZOK</a> · v" STREAM_CHAT_VERSION);version->setObjectName("Credit");version->setTextFormat(Qt::RichText);version->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::LinksAccessibleByKeyboard);version->setOpenExternalLinks(true);version->setAlignment(Qt::AlignCenter);version->setFixedHeight(20);footer->addWidget(version);layout->addLayout(footer);
         batch_.setInterval(20);batch_.setSingleShot(true);trafficTimer_.setInterval(2000);
         emoteRedraw_.setSingleShot(true);emoteRedraw_.setInterval(120);
         connect(&emoteRedraw_,&QTimer::timeout,this,[this]{redrawMessages();});
         connect(&batch_,&QTimer::timeout,this,[this]{flush();});
         connect(scrollBottom_,&QPushButton::clicked,this,[this]{messages_->verticalScrollBar()->setValue(messages_->verticalScrollBar()->maximum());unread_=0;updateScrollButton();});
         connect(messages_->verticalScrollBar(),&QScrollBar::valueChanged,this,[this]{if(redrawing_)return;if(atBottom())unread_=0;updateScrollButton();});
-        connect(&trafficTimer_,&QTimer::timeout,this,[this]{setStreaming(anyStreamingOutput());updateTraffic();updateMetrics();updateLastMessage();});
+        connect(&trafficTimer_,&QTimer::timeout,this,[this]{setStreaming(anyStreamingOutput());updateMetrics();updateLastMessage();});
         connect(send_,&QPushButton::clicked,this,[this]{send();});connect(input_,&QLineEdit::returnPressed,this,[this]{send();});
         connect(target_,&QAbstractButton::toggled,this,[this]{refresh();});
         connect(youtubeTarget_,&QAbstractButton::toggled,this,[this]{refresh();});
@@ -340,11 +347,11 @@ public:
         {QSettings saved(configPath("ui.ini"),QSettings::IniFormat);language_=saved.value("language","auto").toString();if(language_!="auto"&&language_!="ru"&&language_!="en")language_="auto";english_=language_=="en"||(language_=="auto"&&obsLanguageIsEnglish());}
         applyLanguage();
         streaming_=anyStreamingOutput();twitch_.setStreamActive(streaming_);youtube_.setStreamActive(streaming_);
-        refresh();updateTraffic();updateMetrics();
+        refresh();updateLastMessage();updateMetrics();
     }
     void setStreaming(bool active){if(streaming_==active)return;streaming_=active;seenThisStream_=false;twitch_.setStreamActive(active);youtube_.setStreamActive(active);refresh();}
 protected:
-    void showEvent(QShowEvent* event)override{QWidget::showEvent(event);setStreaming(anyStreamingOutput());twitch_.setVisible(true);youtube_.setVisible(true);QTimer::singleShot(0,this,[this]{if(isVisible()){twitch_.setVisible(true);youtube_.setVisible(true);refresh();}});trafficTimer_.start();updateTraffic();updateMetrics();if(!pending_.isEmpty())batch_.start();if(emotesDirty_)emoteRedraw_.start();}
+    void showEvent(QShowEvent* event)override{QWidget::showEvent(event);setStreaming(anyStreamingOutput());twitch_.setVisible(true);youtube_.setVisible(true);QTimer::singleShot(0,this,[this]{if(isVisible()){twitch_.setVisible(true);youtube_.setVisible(true);refresh();}});trafficTimer_.start();updateLastMessage();updateMetrics();if(!pending_.isEmpty())batch_.start();if(emotesDirty_)emoteRedraw_.start();}
     void hideEvent(QHideEvent* event)override{twitch_.setVisible(false);youtube_.setVisible(false);batch_.stop();trafficTimer_.stop();emoteRedraw_.stop();if(activeSends_)delivery_->setText(english_?"Dock hidden: delivery unconfirmed. No automatic retry.":"Панель скрыта: результат отправки не подтверждён. Автоматического повтора нет.");activeSends_=0;refresh();QWidget::hideEvent(event);}
 private:
     void applyChatTextSize(){
@@ -434,13 +441,10 @@ private:
         scrollBottom_->setToolTip(english_?"Jump to new messages":"К новым сообщениям");
         messages_->setPlaceholderText(english_?"Messages appear here. History is kept until OBS closes.":"Здесь появятся сообщения. История хранится только до закрытия OBS.");
         input_->setPlaceholderText(english_?"Write to chat…":"Написать в чат…");send_->setText(english_?"Send":"Отправить");
-        usageTitle_->setText(english_?"Plugin usage":"Нагрузка плагина");memoryName_->setText(english_?"Data memory":"Память данных");
-        usageCard_->setToolTip(english_?"CPU: measured plugin work; memory: tracked messages and buffers, not all OBS memory":"CPU — измеренные участки работы плагина; память — учтённые сообщения и буферы, не вся память OBS");
-        traffic_->setToolTip(english_?"Plugin HTTP and WebSocket traffic since OBS started; excludes video and network headers":"Трафик HTTP и WebSocket этого плагина с запуска OBS; без видео и сетевых заголовков");
         totalCount_->setToolTip(english_?"Messages during this OBS session":"Всего сообщений за этот запуск OBS");twitchCount_->setToolTip(english_?"Twitch messages during this OBS session":"Сообщения Twitch за этот запуск OBS");youtubeCount_->setToolTip(english_?"YouTube messages during this OBS session":"Сообщения YouTube за этот запуск OBS");
         target_->setToolTip(english_?"Send to Twitch":"Отправлять в Twitch");target_->setAccessibleName(target_->toolTip());youtubeTarget_->setToolTip(english_?"Send to YouTube":"Отправлять в YouTube");youtubeTarget_->setAccessibleName(youtubeTarget_->toolTip());
         if(broadcast_->count())broadcast_->setItemText(0,english_?"Choose stream":"Выберите эфир");
-        refresh();updateTraffic();updateMetrics();
+        refresh();updateLastMessage();updateMetrics();
     }
     static QStringList namesFrom(const QString& raw){
         auto names=raw.split(QRegularExpression("[,;\\n]"),Qt::SkipEmptyParts);for(auto& name:names){name=name.trimmed();if(name.startsWith('@'))name.remove(0,1);}names.removeAll(QString());return names;
@@ -459,7 +463,6 @@ private:
             (english_?"Last message: ":"Последнее сообщение: ")+(age<60?QString::number(age)+(english_?" sec ago":" сек. назад"):QString::number(age/60)+(english_?" min ago":" мин. назад")));
         lastMessage_->setToolTip(english_?"Time since a message arrived; silence alone does not mean a connection failure":"Время с получения сообщения. Тишина в чате сама по себе не означает обрыв связи");
     }
-    void updateTraffic(){updateLastMessage();traffic_->setText((english_?"Session traffic · ↑ ":"Трафик за сеанс · ↑ ")+volume(sc::traffic::sent.load(std::memory_order_relaxed),english_)+"  |  ↓ "+volume(sc::traffic::received.load(std::memory_order_relaxed),english_));}
     void requestEmote(const QString& id){
         if(id.isEmpty()||emotes_.contains(id)||pendingEmotes_.contains(id)||failedEmotes_.contains(id)||emotes_.size()+pendingEmotes_.size()+failedEmotes_.size()>=64)return;
         QNetworkRequest request(QUrl("https://static-cdn.jtvnw.net/emoticons/v2/"+id+"/static/dark/1.0"));
@@ -478,18 +481,11 @@ private:
         });
     }
     void updateMetrics(){
-        const auto cpuNow=sc::measuredCpuNs.load(std::memory_order_relaxed);
-        if(usageClock_.isValid()&&usageClock_.nsecsElapsed()>0){
-            const double cores=std::max(1u,std::thread::hardware_concurrency());
-            const double percent=100.0*double(cpuNow-lastCpuNs_)/double(usageClock_.nsecsElapsed())/cores;
-            cpuValue_->setText(percent<0.01?(english_?"<0.01 %":"<0,01 %"):QLocale(english_?QLocale::English:QLocale::Russian).toString(percent,'f',2)+" %");
-        }
-        lastCpuNs_=cpuNow;usageClock_.restart();
         quint64 bytes=quint64(messages_->document()->characterCount())*sizeof(QChar);
         auto add=[&bytes](const sc::ChatMessage& m){for(const auto* s:{&m.platform,&m.id,&m.authorId,&m.author,&m.text})bytes+=quint64(s->capacity())*sizeof(QChar);for(const auto& part:m.fragments){bytes+=quint64(part.text.capacity()+part.emoteId.capacity())*sizeof(QChar);}};
         for(const auto& m:history_)add(m);for(const auto& m:pending_)add(m);
         for(auto it=emotes_.cbegin();it!=emotes_.cend();++it)bytes+=quint64(it.value().width())*quint64(it.value().height())*4;
-        memoryValue_->setText(volume(bytes,english_));
+        sc::measuredDataBytes.store(bytes,std::memory_order_relaxed);
     }
     bool atBottom()const{const auto* bar=messages_->verticalScrollBar();return bar->value()>=bar->maximum()-3;}
     void updateScrollButton(){scrollBottom_->setVisible(!atBottom()&&unread_>0);scrollBottom_->setText(unread_>0?"↓ "+QString::number(unread_):"↓");}
