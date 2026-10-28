@@ -4,7 +4,7 @@
 
 ![Stream Chat English interface](screenshots/chat-en.png)
 
-*Version 0.3.14 UI preview from an isolated test host; messages and connections are sample data.* [Russian interface](screenshots/chat-ru.png) · [Narrow dock](screenshots/chat-narrow-ru.png) · [Settings](screenshots/settings-en.png).
+*Version 0.3.15 UI preview from an isolated test host; messages and connections are sample data.* [Russian interface](screenshots/chat-ru.png) · [Narrow dock](screenshots/chat-narrow-ru.png) · [Settings](screenshots/settings-en.png).
 
 ## Features
 
