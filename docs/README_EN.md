@@ -4,7 +4,7 @@
 
 ![Stream Chat English interface](screenshots/chat-en.png)
 
-*Version 0.3.15 UI preview from an isolated test host; messages and connections are sample data.* [Russian interface](screenshots/chat-ru.png) · [Narrow dock](screenshots/chat-narrow-ru.png) · [Settings](screenshots/settings-en.png).
+*Version 0.3.17 UI preview from an isolated test host; messages and connections are sample data.* [Russian interface](screenshots/chat-ru.png) · [Narrow dock](screenshots/chat-narrow-ru.png) · [Settings](screenshots/settings-en.png).
 
 ## Features
 
@@ -15,12 +15,11 @@
 - If the YouTube streaming connection stops delivering data, the plugin switches to the official chat polling API at a limited rate.
 - Sign in through a browser without copying tokens. Account data stays on this PC and is protected by Windows.
 - Settings include **Auto / Russian / English** and text size with a live preview. Message history is cleared when OBS closes.
+- Highlight your names, optionally hide named bots, and see when the last chat message arrived.
 
-## Verified status
+## How the plugins work together
 
-- OBS 33 on Windows x64 loads the plugin. Twitch sign-in, real messages, and viewer count were checked during a stream on version 0.3.8.
-- Google browser sign-in was confirmed. The YouTube polling fallback still needs validation during a real broadcast.
-- Version 0.3.15 is built and UI-tested in CI; live YouTube chat still needs confirmation.
+Stream Chat works on its own. Stream Stats can read Chat's local CPU, tracked data and traffic counters when installed. Stream Notify may use Chat's saved Twitch and YouTube sign-ins to check live status; it does not change Chat's account data.
 
 ## Install
 
@@ -29,6 +28,8 @@
 3. Start OBS, open the **Stream Chat** dock, and sign in to the services you use.
 
 Target: **OBS 33, Windows x64**. `BUILD_INFO.json` in the archive identifies the version and source revision. The build is currently unsigned.
+
+Live YouTube chat still needs verification during a real broadcast.
 
 ## Support the project
 
