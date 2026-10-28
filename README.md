@@ -25,6 +25,6 @@
 
 ## Ещё
 
-[Общий стиль трёх плагинов](docs/VISUAL_STYLE_RU.md) · [Поддержать разработку](https://www.donationalerts.com/r/otmopozok)
+[Общий стиль трёх плагинов](docs/VISUAL_STYLE_RU.md) · [Лицензия GPL v2 или новее](LICENSE_NOTICE.md) · [Поддержать разработку](https://www.donationalerts.com/r/otmopozok)
 
 Разработчик: [OTMOPOZOK](https://www.youtube.com/channel/UCTAKYR3T2Ud8zZgNShgQfyw/).
