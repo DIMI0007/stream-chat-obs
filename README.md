@@ -6,7 +6,7 @@
 
 ![Панель Stream Chat на русском](docs/screenshots/chat-ru.png)
 
-*Снимок интерфейса 0.3.14 создан в тестовом окружении; сообщения и подключения демонстрационные.* [Английский интерфейс](docs/screenshots/chat-en.png) · [Настройки](docs/screenshots/settings-ru.png).
+*Снимок интерфейса 0.3.14 создан в тестовом окружении; сообщения и подключения демонстрационные.* [Английский интерфейс](docs/screenshots/chat-en.png) · [Узкая панель](docs/screenshots/chat-narrow-ru.png) · [Настройки](docs/screenshots/settings-ru.png).
 
 ## Возможности
 
