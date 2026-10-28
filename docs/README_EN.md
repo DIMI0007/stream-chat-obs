@@ -20,7 +20,7 @@
 
 - OBS 33 on Windows x64 loads the plugin. Twitch sign-in, real messages, and viewer count were checked during a stream on version 0.3.8.
 - Google browser sign-in was confirmed. The YouTube polling fallback still needs validation during a real broadcast.
-- Version 0.3.14 is built and UI-tested in CI; live YouTube chat still needs confirmation.
+- Version 0.3.15 is built and UI-tested in CI; live YouTube chat still needs confirmation.
 
 ## Install
 

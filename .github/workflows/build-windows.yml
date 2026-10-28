@@ -36,6 +36,16 @@ jobs:
           if (!(Test-Path package/stream-chat-obs/bin/64bit/stream-chat-obs.dll)) { throw 'Plugin DLL missing' }
           if (!(Test-Path package/stream-chat-obs/bin/64bit/Qt6WebSockets.dll)) { throw 'WebSocket runtime missing' }
           if (!(Test-Path package/stream-chat-obs/data/qt-plugins/tls/qschannelbackend.dll)) { throw 'TLS backend missing' }
+          $runtime = 'vendor/Qt6WebSockets.dll'
+          if ((Get-FileHash $runtime -Algorithm SHA256).Hash -ne 'A158B90C70D8B6DD3C651028A7C3D93BD751440598F551CD763FED78E31D8008') { throw 'Pinned WebSocket runtime hash mismatch' }
+          Copy-Item $runtime package/stream-chat-obs/bin/64bit/Qt6WebSockets.dll -Force
+          $bin = 'package/stream-chat-obs/bin/64bit'
+          foreach ($file in Get-ChildItem $bin -File) { Move-Item -LiteralPath $file.FullName -Destination 'package/stream-chat-obs' -Force }
+          Remove-Item $bin
+          Remove-Item 'package/stream-chat-obs/bin'
+          if (!(Test-Path package/stream-chat-obs/stream-chat-obs.dll)) { throw 'OBS 33 plugin layout missing' }
+          if (Test-Path package/stream-chat-obs/bin) { throw 'Legacy plugin layout remains' }
+          Copy-Item docs/INSTALL_RU.md package/INSTALL_RU.md
           $spec=Get-Content buildspec.json -Raw|ConvertFrom-Json
           [ordered]@{product='Stream Chat OBS';version=$spec.version;commit=$env:GITHUB_SHA;obs='33.0.0';qt='6.11.1';packageType='unsigned-alpha';platforms=@('Twitch','YouTube');liveAccountValidation='pending'}|ConvertTo-Json|Set-Content package/BUILD_INFO.json -Encoding utf8
       - uses: actions/upload-artifact@v4
