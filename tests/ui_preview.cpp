@@ -101,6 +101,13 @@ int main(int argc,char** argv){
         if(!dock.grab().save(output+"/kick-chat-"+language+"-"+QString::number(width)+".png"))return previewResult(32);
         dock.previewAppend(sc::ChatMessage{"Kick","kick-html","42","KickViewer","<b>literal text</b>"});
         if(!messages->toPlainText().contains("<b>literal text</b>"))return previewResult(34);
+        dock.previewCounters(1234,5678,9012);app.processEvents();
+        for(const auto& platform:{QString("Twitch"),QString("YouTube"),QString("Kick")}){
+            auto* pair=dock.findChild<QWidget*>(platform+"Recipient");auto* counter=pair?pair->findChild<QLabel*>(platform+"MessageCount"):nullptr;auto* icon=pair?pair->findChild<QAbstractButton*>():nullptr;
+            if(!counter||!icon||!counter->isVisible()||counter->x()-icon->x()-icon->width()>3)return previewResult(37);
+        }
+        if(dock.width()!=width||!dock.grab().save(output+"/kick-message-counts-"+language+"-"+QString::number(width)+".png"))return previewResult(38);
+        dock.previewCounters(123456789,987654321,123456789);app.processEvents();if(dock.width()!=width)return previewResult(39);
         settings->click();app.processEvents();page=dock.findChild<QWidget*>("SettingsPage");page->findChild<QCheckBox*>("EnableKick")->setChecked(false);app.processEvents();
         if(!card->isHidden()||page->findChild<QWidget*>("KickAccountSettings")->isVisible())return previewResult(33);
         dock.hide();app.processEvents();
