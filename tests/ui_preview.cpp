@@ -23,7 +23,7 @@ int main(int argc,char** argv){
     {QSettings settings(config+"/ui.ini",QSettings::IniFormat);settings.setValue("language","ru");settings.sync();}
     {
         std::cout<<"Narrow dock"<<std::endl;ChatDock narrow;narrow.resize(275,600);narrow.show();app.processEvents();
-        auto* chat=narrow.findChild<QTextEdit*>();
+        auto* chat=narrow.findChild<QTextEdit*>("ChatMessages");
         if(narrow.width()!=275||!chat||chat->lineWrapMode()!=QTextEdit::WidgetWidth||
            chat->wordWrapMode()!=QTextOption::WrapAtWordBoundaryOrAnywhere)return previewResult(17);
         if(!narrow.grab().save(output+"/chat-narrow-ru.png"))return previewResult(18);
@@ -39,7 +39,7 @@ int main(int argc,char** argv){
         if(language=="en"){twitch.text="Hello from Twitch!";youtube.text="Hello from YouTube!";}
         previewDock.previewAppend(twitch);previewDock.previewAppend(youtube);app.processEvents();
         if(!previewDock.grab().save(output+"/chat-"+language+".png"))return previewResult(5);
-        auto* messages=previewDock.findChild<QTextEdit*>();auto* jump=previewDock.findChild<QPushButton*>("ScrollBottom");
+        auto* messages=previewDock.findChild<QTextEdit*>("ChatMessages");auto* jump=previewDock.findChild<QPushButton*>("ScrollBottom");
         if(!messages||!jump)return previewResult(6);
         auto* settingsButton=previewDock.findChild<QPushButton*>("Settings");
         if(!settingsButton)return previewResult(10);
@@ -56,7 +56,7 @@ int main(int argc,char** argv){
         slider->setValue(140);app.processEvents();
         if(messages->document()->defaultFont().pixelSize()!=16||previewDock.styleSheet()!=interfaceStyle)return previewResult(13);
         auto* back=settingsPage->findChild<QPushButton*>();if(!back)return previewResult(14);
-        back->click();app.processEvents();
+        back->click();app.processEvents();QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
         if(!messages->isVisible())return previewResult(15);
         for(int i=0;i<70;++i){auto next=twitch;next.id="preview-"+QString::number(i+3);previewDock.previewAppend(next);}
         previewDock.previewRedraw();
@@ -70,7 +70,7 @@ int main(int argc,char** argv){
     {ChatDock filters;filters.resize(360,740);filters.show();app.processEvents();
         filters.previewAppend(sc::ChatMessage{"Twitch","bot","bot","Nightbot","hidden bot message"});
         filters.previewAppend(sc::ChatMessage{"YouTube","mention","guest","Guest","Hello @Streamer!"});
-        auto* messages=filters.findChild<QTextEdit*>();if(!messages||messages->toPlainText().contains("hidden bot message")||!messages->toPlainText().contains("Hello @Streamer!"))return previewResult(19);
+        auto* messages=filters.findChild<QTextEdit*>("ChatMessages");if(!messages||messages->toPlainText().contains("hidden bot message")||!messages->toPlainText().contains("Hello @Streamer!"))return previewResult(19);
         QTextCursor cursor(messages->document());cursor.movePosition(QTextCursor::Start);if(cursor.blockFormat().background().color()!=QColor("#193b34"))return previewResult(20);
         if(!filters.grab().save(output+"/chat-mentions.png"))return previewResult(21);
     }
@@ -91,10 +91,10 @@ int main(int argc,char** argv){
         if(!guide->isVisible()||!guide->wordWrap()||!guide->text().contains("chat:write"))return previewResult(28);
         scroll->ensureWidgetVisible(guide,0,0);app.processEvents();
         if(!dock.grab().save(output+"/kick-guide-"+language+"-"+QString::number(width)+".png"))return previewResult(29);
-        auto* back=page->findChild<QPushButton*>();back->click();app.processEvents();
+        auto* back=page->findChild<QPushButton*>();back->click();app.processEvents();QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
         if(!card->isVisible()||dock.width()!=width)return previewResult(30);
         dock.previewAppend(sc::ChatMessage{"Kick","kick-ui-1","42","KickViewer","<b>Kick message</b>"});dock.previewRedraw();app.processEvents();
-        auto* messages=dock.findChild<QTextEdit*>();
+        auto* messages=dock.findChild<QTextEdit*>("ChatMessages");
         if(!messages->toPlainText().contains("<b>Kick message</b>")||messages->document()->resource(QTextDocument::ImageResource,QUrl("stream-chat://icon/kick")).value<QPixmap>().isNull())return previewResult(31);
         if(!dock.grab().save(output+"/kick-chat-"+language+"-"+QString::number(width)+".png"))return previewResult(32);
         settings->click();app.processEvents();page=dock.findChild<QWidget*>("SettingsPage");page->findChild<QCheckBox*>("EnableKick")->setChecked(false);app.processEvents();
