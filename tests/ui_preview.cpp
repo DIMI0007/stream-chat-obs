@@ -36,8 +36,11 @@ int main(int argc,char** argv){
         twitch.sentAt=QDateTime(QDate(2026,10,26),QTime(14,32),Qt::LocalTime);
         sc::ChatMessage youtube{"YouTube","preview-2","viewer-2","Guest","Привет из YouTube!"};
         youtube.sentAt=QDateTime(QDate(2026,10,26),QTime(14,33),Qt::LocalTime);
+        QPixmap sampleAvatar(24,24);sampleAvatar.fill(QColor("#bb769b"));previewDock.previewAvatar("viewer-2",sampleAvatar);
         if(language=="en"){twitch.text="Hello from Twitch!";youtube.text="Hello from YouTube!";}
         previewDock.previewAppend(twitch);previewDock.previewAppend(youtube);app.processEvents();
+        const auto avatar=previewDock.findChild<QTextEdit*>("ChatMessages")->document()->resource(QTextDocument::ImageResource,QUrl("stream-chat://avatar/viewer-2")).value<QPixmap>();
+        if(avatar.isNull()||avatar.size()!=QSize(24,24))return previewResult(38);
         if(!previewDock.grab().save(output+"/chat-"+language+".png"))return previewResult(5);
         auto* messages=previewDock.findChild<QTextEdit*>("ChatMessages");auto* jump=previewDock.findChild<QPushButton*>("ScrollBottom");
         if(!messages||!jump)return previewResult(6);

@@ -15,6 +15,9 @@ int main(int argc,char** argv){
     require(batch.messages.size()==1,"Expected one chat message");
     const auto message=batch.messages.first();
     require(message.platform=="YouTube"&&message.id=="m1"&&message.author=="Ada"&&message.text=="hello","Decoded chat fields differ");
+    Batch avatarBatch;const auto author=stringField(103,"Ada")+stringField(104,"https://yt3.googleusercontent.com/avatar")+stringField(10101,"UC123");
+    require(decode(stringField(1007,stringField(101,"avatar-id")+stringField(3,author)+stringField(2,stringField(16,"hello"))),avatarBatch),"Avatar response was rejected");
+    require(avatarBatch.messages.size()==1&&avatarBatch.messages.first().avatarUrl=="https://yt3.googleusercontent.com/avatar","YouTube avatar URL was not decoded");
     const auto datedSnippet=stringField(4,"2026-10-26T12:34:56.123456789Z")+stringField(16,"hello");
     Batch dated;require(decode(stringField(1007,stringField(101,"dated-id")+stringField(2,datedSnippet)),dated),"Published timestamp was rejected");
     require(dated.messages.size()==1&&dated.messages.first().sentAt.isValid()&&dated.messages.first().sentAt.toUTC().toString("HH:mm:ss.zzz")=="12:34:56.123","Published timestamp was not decoded");

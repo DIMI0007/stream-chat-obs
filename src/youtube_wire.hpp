@@ -48,6 +48,7 @@ inline bool decode(const QByteArray& payload,Batch& batch){
             if(part.number==3&&part.wire==2){Reader author(part.bytes);Field property;while(author.next(property)){
                 if(property.number==103&&property.wire==2)message.author=QString::fromUtf8(property.bytes).left(100);
                 if(property.number==10101&&property.wire==2)message.authorId=QString::fromUtf8(property.bytes).left(256);
+                if(property.number==104&&property.wire==2)message.avatarUrl=QString::fromUtf8(property.bytes).left(512);
             }if(!author.valid())return false;}
             if(part.number==2&&part.wire==2){Reader snippet(part.bytes);Field property;while(snippet.next(property)){
                 if(property.number==16&&property.wire==2)message.text=QString::fromUtf8(property.bytes).left(5000);

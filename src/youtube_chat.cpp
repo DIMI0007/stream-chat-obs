@@ -219,6 +219,7 @@ void YouTubeChat::pollFallback(){
             message.platform="YouTube";message.id=id;message.text=text;
             message.author=author.value("displayName").toString().left(100);
             message.authorId=author.value("channelId").toString().left(256);
+            message.avatarUrl=author.value("profileImageUrl").toString().left(512);
             message.sentAt=parsePlatformTime(snippet.value("publishedAt").toString());
             seen_.insert(id);seenOrder_.enqueue(id);
             while(seenOrder_.size()>1000)seen_.remove(seenOrder_.dequeue());

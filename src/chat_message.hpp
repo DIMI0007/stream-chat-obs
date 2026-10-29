@@ -5,7 +5,7 @@
 #include <algorithm>
 namespace sc {
 struct ChatFragment {QString text,emoteId;};
-struct ChatMessage {QString platform,id,authorId,author,text;QVector<ChatFragment> fragments;QDateTime sentAt;};
+struct ChatMessage {QString platform,id,authorId,author,text;QVector<ChatFragment> fragments;QDateTime sentAt;QString avatarUrl;};
 inline QDateTime parsePlatformTime(QString value){
     if(value.size()>64)return {};
     const auto dot=value.indexOf('.');
