@@ -12,7 +12,6 @@
 #include <QAbstractButton>
 #include <QSizePolicy>
 #include <QHBoxLayout>
-#include <QGridLayout>
 #include <QResizeEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -351,7 +350,7 @@ public:
         applyChatTextSize();
         messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/twitch"),messagePlatformIcon("Twitch"));messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/youtube"),messagePlatformIcon("YouTube"));messages_->document()->addResource(QTextDocument::ImageResource,QUrl("stream-chat://icon/kick"),messagePlatformIcon("Kick"));chatLayout->addWidget(messages_,1);
         recipientHint_=new QLabel("Куда отправлять");recipientHint_->setObjectName("Hint");chatLayout->addWidget(recipientHint_);
-        recipientGroups_=new QWidget;recipientGrid_=new QGridLayout(recipientGroups_);recipientGrid_->setContentsMargins(0,0,0,0);recipientGrid_->setHorizontalSpacing(8);recipientGrid_->setVerticalSpacing(3);chatLayout->addWidget(recipientGroups_);
+        recipientGroups_=new QWidget;recipientLayout_=new QVBoxLayout(recipientGroups_);recipientLayout_->setContentsMargins(0,0,0,0);recipientLayout_->setSpacing(3);chatLayout->addWidget(recipientGroups_);
         auto recipientPair=[this](const QString& platform,QAbstractButton*& toggle,QLabel*& count){
             auto* pair=new QWidget(recipientGroups_);pair->setVisible(true);pair->setObjectName(platform+"Recipient");auto* row=new QHBoxLayout(pair);row->setContentsMargins(0,0,0,0);row->setSpacing(2);
             toggle=new PlatformToggle(platform);toggle->setChecked(true);row->addWidget(toggle);
@@ -404,15 +403,16 @@ protected:
     void hideEvent(QHideEvent* event)override{twitch_.setVisible(false);youtube_.setVisible(false);kick_.setVisible(false);batch_.stop();trafficTimer_.stop();emoteRedraw_.stop();if(activeSends_)delivery_->setText(english_?"Dock hidden: delivery unconfirmed. No automatic retry.":"Панель скрыта: результат отправки не подтверждён. Автоматического повтора нет.");activeSends_=0;refresh();QWidget::hideEvent(event);}
 private:
     void layoutRecipients(){
-        if(!recipientGrid_)return;const int available=std::max(1,width()-32);QString key=QString::number(available);
+        if(!recipientLayout_)return;const int available=std::max(1,width()-32);QString key=QString::number(available);
         for(auto* pair:recipientPairs_)key+="/"+QString::number(pair->isHidden()?-1:pair->sizeHint().width());
         if(key==recipientLayoutKey_)return;recipientLayoutKey_=key;
-        while(auto* item=recipientGrid_->takeAt(0))delete item;
-        int row=0,column=0,used=0;
+        while(auto* item=recipientLayout_->takeAt(0))delete item;
+        QHBoxLayout* row=nullptr;int used=0;
         for(auto* pair:recipientPairs_){if(pair->isHidden())continue;const int width=pair->sizeHint().width();
-            if(column&&used+8+width>available){++row;column=0;used=0;}
-            recipientGrid_->addWidget(pair,row,column++,Qt::AlignLeft);used+=width+(used?8:0);
+            if(!row||used+8+width>available){if(row)row->addStretch();row=new QHBoxLayout;row->setContentsMargins(0,0,0,0);row->setSpacing(8);recipientLayout_->addLayout(row);used=0;}
+            row->addWidget(pair);used+=width+(used?8:0);
         }
+        if(row)row->addStretch();
     }
     void applyChatTextSize(){
         QFont font=messages_->font();font.setPixelSize(std::max(9,12*textScale_/100));
@@ -708,7 +708,7 @@ private:
         redrawMessages();
     }
     sc::TwitchChat twitch_;sc::YouTubeChat youtube_;sc::KickChat kick_;
-    QWidget* recipientGroups_=nullptr;QGridLayout* recipientGrid_=nullptr;QVector<QWidget*> recipientPairs_;QString recipientLayoutKey_;
+    QWidget* recipientGroups_=nullptr;QVBoxLayout* recipientLayout_=nullptr;QVector<QWidget*> recipientPairs_;QString recipientLayoutKey_;
     QWidget* kickCard_=nullptr;QLabel* kickViewers_=nullptr;QLabel* kickStatus_=nullptr;QLabel* kickCount_=nullptr;QAbstractButton* kickTarget_=nullptr;QPushButton* kickLogin_=nullptr;QPushButton* kickLogout_=nullptr;bool kickEnabled_=false,kickSent_=false;quint64 kickMessages_=0;QStackedLayout* pages_=nullptr;WrappedChatEdit* messages_=nullptr;QLabel* twitchStatus_=nullptr;QLabel* youtubeStatus_=nullptr;QLabel* twitchViewers_=nullptr;QLabel* youtubeViewers_=nullptr;QLabel* code_=nullptr;QLabel* delivery_=nullptr;QLabel* totalCount_=nullptr;QLabel* twitchCount_=nullptr;QLabel* youtubeCount_=nullptr;QLabel* traffic_=nullptr;QLabel* cpuValue_=nullptr;QLabel* memoryValue_=nullptr;QLabel* chatTitle_=nullptr;QLabel* recipientHint_=nullptr;QLabel* usageTitle_=nullptr;QLabel* memoryName_=nullptr;QWidget* usageCard_=nullptr;QPushButton* settings_=nullptr;QPushButton* scrollBottom_=nullptr;
     QLineEdit* input_=nullptr;QAbstractButton* target_=nullptr;QPushButton* send_=nullptr;QPushButton* login_=nullptr;QPushButton* logout_=nullptr;
     QAbstractButton* youtubeTarget_=nullptr;QComboBox* broadcast_=nullptr;QPushButton* googleLogin_=nullptr;QPushButton* googleLogout_=nullptr;
