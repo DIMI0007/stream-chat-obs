@@ -456,6 +456,15 @@ private:
             choice->setProperty("localeCode",code);choices->push_back(choice);line->addWidget(choice,1);
         }
         layout->addLayout(line);
+        auto accountLabel=[this,page,choices](QVBoxLayout* column,const QString& title,const QString& id,const QString& ruHelp,const QString& enHelp){
+            auto* row=new QHBoxLayout;row->setContentsMargins(0,0,0,0);row->setSpacing(5);
+            auto* name=new QLabel(title);row->addWidget(name);row->addStretch();
+            auto* help=new QLabel("?");help->setObjectName(id+"Help");help->setFixedSize(17,17);help->setAlignment(Qt::AlignCenter);
+            help->setStyleSheet("color:#9fc8e0;background:#152b3d;border:1px solid #426078;border-radius:8px;font-weight:700;");
+            auto update=[this,help,ruHelp,enHelp]{help->setToolTip(english_?enHelp:ruHelp);};update();
+            for(auto* choice:*choices)connect(choice,&QPushButton::clicked,page,update);
+            row->addWidget(help);column->addLayout(row);return name;
+        };
         auto* scaleCard=new QWidget(page);scaleCard->setObjectName("LanguageCard");scaleCard->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Maximum);outer->addWidget(scaleCard);
         auto* scaleLayout=new QVBoxLayout(scaleCard);scaleLayout->setContentsMargins(8,6,8,8);scaleLayout->setSpacing(4);
         auto* scaleTitle=new QLabel(english_?"Chat text size":"Размер текста чата");scaleLayout->addWidget(scaleTitle);
@@ -495,15 +504,15 @@ private:
         connect(highlight,&QCheckBox::toggled,page,[saveFilters](bool){saveFilters();});
         connect(hideBots,&QCheckBox::toggled,page,[saveFilters](bool){saveFilters();});
         connect(names,&QLineEdit::editingFinished,page,saveFilters);connect(bots,&QLineEdit::editingFinished,page,saveFilters);
-        auto addPersonalAccount=[this,page,outer,choices](bool youtube){
+        auto addPersonalAccount=[this,page,outer,choices,accountLabel](bool youtube){
             auto* group=new QWidget;group->setObjectName(youtube?"YouTubePersonalSettings":"TwitchPersonalSettings");
             outer->addWidget(group);
             auto* box=new QVBoxLayout(group);box->setContentsMargins(11,10,11,11);box->setSpacing(8);
             box->addWidget(sectionTitle(youtube?"YouTube":"Twitch"));
             auto* hint=new QLabel;hint->setWordWrap(true);hint->setStyleSheet("font-weight:400;color:#8ea1c0;");box->addWidget(hint);
-            box->addWidget(new QLabel("Client ID"));auto* id=new QLineEdit(youtube?youtube_.clientId():twitch_.clientId());id->setMaxLength(240);id->setObjectName(youtube?"YouTubeClientId":"TwitchClientId");box->addWidget(id);
+            accountLabel(box,"Client ID",youtube?"YouTubeClientId":"TwitchClientId",youtube?"Идентификатор вашего приложения Google для компьютера. Скопируйте в Google Cloud → Google Auth platform → Clients.":"Публичный идентификатор вашего приложения Twitch. Скопируйте в Twitch Developer Console → Applications.",youtube?"Your Google desktop application's identifier. Copy it from Google Cloud → Google Auth platform → Clients.":"Your public Twitch application identifier. Copy it from Twitch Developer Console → Applications.");auto* id=new QLineEdit(youtube?youtube_.clientId():twitch_.clientId());id->setMaxLength(240);id->setObjectName(youtube?"YouTubeClientId":"TwitchClientId");box->addWidget(id);
             QLineEdit* secret=nullptr;
-            if(youtube){box->addWidget(new QLabel("Client Secret"));secret=new QLineEdit(youtube_.clientSecret());secret->setObjectName("YouTubeClientSecret");secret->setEchoMode(QLineEdit::Password);secret->setMaxLength(500);box->addWidget(secret);}
+            if(youtube){accountLabel(box,"Client Secret","YouTubeClientSecret","Секрет того же приложения Google для компьютера. Это не пароль аккаунта и не ключ трансляции.","Secret of the same Google desktop application. This is neither your account password nor your stream key.");secret=new QLineEdit(youtube_.clientSecret());secret->setObjectName("YouTubeClientSecret");secret->setEchoMode(QLineEdit::Password);secret->setMaxLength(500);box->addWidget(secret);}
             auto* actions=new QHBoxLayout;actions->setSpacing(6);auto* save=new QPushButton;auto* login=new QPushButton;login->setObjectName("AccountPrimary");actions->addWidget(save,1);actions->addWidget(login,1);box->addLayout(actions);
             auto* instructions=new QPushButton;instructions->setObjectName(youtube?"YouTubeSetupGuide":"TwitchSetupGuide");box->addWidget(instructions);
             auto* status=new QLabel;status->setWordWrap(true);status->setStyleSheet("font-weight:400;color:#8ea1c0;");box->addWidget(status);
@@ -523,12 +532,12 @@ private:
         auto* kickLayout=new QVBoxLayout(kickCard);kickLayout->setContentsMargins(11,10,11,11);kickLayout->setSpacing(8);
         auto* enableKick=new QCheckBox;enableKick->setObjectName("EnableKick");enableKick->setChecked(kickEnabled_);kickLayout->addWidget(enableKick);
         auto* account=new QWidget;account->setObjectName("KickAccountSettings");auto* accountLayout=new QVBoxLayout(account);accountLayout->setContentsMargins(0,2,0,0);accountLayout->setSpacing(8);kickLayout->addWidget(account);account->setVisible(kickEnabled_);
-        auto addField=[accountLayout](const QString& name,QLineEdit* field){auto* label=new QLabel(name);label->setWordWrap(true);accountLayout->addWidget(label);accountLayout->addWidget(field);return label;};
-        auto* channel=new QLineEdit(kick_.channel());channel->setMaxLength(100);channel->setObjectName("KickChannel");auto* channelLabel=addField({},channel);
-        auto* clientId=new QLineEdit(kick_.clientId());clientId->setMaxLength(200);clientId->setObjectName("KickClientId");addField("Client ID",clientId);
-        auto* secret=new QLineEdit(kick_.clientSecret());secret->setMaxLength(500);secret->setEchoMode(QLineEdit::Password);secret->setObjectName("KickClientSecret");addField("Client Secret",secret);
+        auto addField=[accountLayout,accountLabel](const QString& name,QLineEdit* field,const QString& ruHelp,const QString& enHelp){auto* label=accountLabel(accountLayout,name,field->objectName(),ruHelp,enHelp);accountLayout->addWidget(field);return label;};
+        auto* channel=new QLineEdit(kick_.channel());channel->setMaxLength(100);channel->setObjectName("KickChannel");auto* channelLabel=addField({},channel,"Имя канала Kick из адреса kick.com/имя. Достаточно для чтения чата; ссылку целиком не вставляйте.","Your Kick channel name from kick.com/name. Enough to read chat; do not paste the full link.");
+        auto* clientId=new QLineEdit(kick_.clientId());clientId->setMaxLength(200);clientId->setObjectName("KickClientId");addField("Client ID",clientId,"Идентификатор личного приложения из Kick → Настройки разработчика. Нужен для входа и отправки.","Personal application ID from Kick → Developer settings. Required to sign in and send.");
+        auto* secret=new QLineEdit(kick_.clientSecret());secret->setMaxLength(500);secret->setEchoMode(QLineEdit::Password);secret->setObjectName("KickClientSecret");addField("Client Secret",secret,"Секрет того же приложения Kick. Это не пароль и не ключ трансляции; хранится зашифрованным на этом ПК.","Secret of the same Kick application. It is not a password or stream key; it is encrypted on this PC.");
         auto* storageHint=new QLabel;storageHint->setObjectName("Hint");storageHint->setWordWrap(true);storageHint->setStyleSheet("font-weight:400;color:#8ea1c0;");accountLayout->addWidget(storageHint);
-        auto* callbackLabel=new QLabel;callbackLabel->setWordWrap(true);accountLayout->addWidget(callbackLabel);
+        auto* callbackLabel=accountLabel(accountLayout,{},"KickCallback","Адрес возврата после входа. Скопируйте его без изменений при создании приложения Kick.","Sign-in return address. Copy it exactly when creating the Kick application.");callbackLabel->setWordWrap(true);
         auto* callback=new QLineEdit(sc::KickChat::callback());callback->setReadOnly(true);callback->setObjectName("KickCallback");accountLayout->addWidget(callback);
         auto* copy=new QPushButton;copy->setObjectName("AccountGuide");accountLayout->addWidget(copy);connect(copy,&QPushButton::clicked,page,[]{QGuiApplication::clipboard()->setText(sc::KickChat::callback());});
         auto* kickActions=new QHBoxLayout;kickActions->setSpacing(6);auto* save=new QPushButton;auto* signIn=new QPushButton;signIn->setObjectName("AccountPrimary");kickActions->addWidget(save,1);kickActions->addWidget(signIn,1);accountLayout->addLayout(kickActions);
