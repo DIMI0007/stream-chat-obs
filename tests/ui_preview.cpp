@@ -86,7 +86,7 @@ int main(int argc,char** argv){
         if(dock.width()!=width)return 26;
         if(!dock.grab().save(output+"/kick-settings-"+language+"-"+QString::number(width)+".png"))return 27;
         auto* guide=account->findChild<QLabel*>("KickSetupGuide");account->findChild<QPushButton*>("KickGuideToggle")->click();app.processEvents();
-        if(!guide->isVisible()||!guide->wordWrap()||!guide->text().contains(sc::KickChat::callback().mid(0,0)+"chat:write"))return 28;
+        if(!guide->isVisible()||!guide->wordWrap()||!guide->text().contains("chat:write"))return 28;
         scroll->ensureWidgetVisible(guide,0,0);app.processEvents();
         if(!dock.grab().save(output+"/kick-guide-"+language+"-"+QString::number(width)+".png"))return 29;
         auto* back=page->findChild<QPushButton*>();back->click();app.processEvents();

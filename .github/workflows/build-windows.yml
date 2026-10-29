@@ -66,3 +66,8 @@ jobs:
           name: StreamChat-UI-Previews
           path: ui-previews/*.png
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StreamChat-Kick-Check
+          path: build_x64/RelWithDebInfo/stream-chat-kick-live-check.exe
+          if-no-files-found: error

@@ -74,6 +74,10 @@ add_test(NAME kick-chat-wire-format COMMAND stream-chat-kick-wire-tests)
 set_tests_properties(kick-chat-wire-format PROPERTIES
   ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
 
+add_executable(stream-chat-kick-live-check tests/kick_live_check.cpp src/kick_chat.cpp src/kick_chat.hpp src/oauth_loopback.hpp)
+target_compile_definitions(stream-chat-kick-live-check PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_link_libraries(stream-chat-kick-live-check PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network Qt6::WebSockets crypt32)
+
 add_executable(stream-chat-ui-preview tests/ui_preview.cpp src/twitch_chat.cpp src/youtube_chat.cpp src/kick_chat.cpp src/oauth_loopback.hpp)
 get_target_property(_obs_includes OBS::libobs INTERFACE_INCLUDE_DIRECTORIES)
 get_target_property(_frontend_includes OBS::obs-frontend-api INTERFACE_INCLUDE_DIRECTORIES)
