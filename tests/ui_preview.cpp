@@ -104,7 +104,7 @@ int main(int argc,char** argv){
         dock.previewCounters(1234,5678,9012);app.processEvents();
         for(const auto& platform:{QString("Twitch"),QString("YouTube"),QString("Kick")}){
             auto* pair=dock.findChild<QWidget*>(platform+"Recipient");auto* counter=pair?pair->findChild<QLabel*>(platform+"MessageCount"):nullptr;auto* icon=pair?pair->findChild<QAbstractButton*>():nullptr;
-            if(!counter||!icon||!counter->isVisible()||counter->x()-icon->x()-icon->width()>3)return previewResult(37);
+            if(!counter||!icon||!counter->isVisible()||counter->x()-icon->x()-icon->width()>3){std::cerr<<"count check "<<platform.toStdString()<<" pair="<<(pair!=nullptr)<<" counter="<<(counter!=nullptr)<<" icon="<<(icon!=nullptr)<<" visible="<<(counter&&counter->isVisible())<<" gap="<<(counter&&icon?counter->x()-icon->x()-icon->width():999)<<std::endl;return previewResult(37);}
         }
         if(dock.width()!=width||!dock.grab().save(output+"/kick-message-counts-"+language+"-"+QString::number(width)+".png"))return previewResult(38);
         dock.previewCounters(123456789,987654321,123456789);app.processEvents();if(dock.width()!=width)return previewResult(39);
