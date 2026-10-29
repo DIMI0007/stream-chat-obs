@@ -410,7 +410,7 @@ private:
         QHBoxLayout* row=nullptr;int used=0;
         for(auto* pair:recipientPairs_){if(pair->isHidden())continue;const int width=pair->sizeHint().width();
             if(!row||used+8+width>available){if(row)row->addStretch();row=new QHBoxLayout;row->setContentsMargins(0,0,0,0);row->setSpacing(8);recipientLayout_->addLayout(row);used=0;}
-            row->addWidget(pair);used+=width+(used?8:0);
+            row->addWidget(pair);pair->setVisible(true);used+=width+(used?8:0);
         }
         if(row)row->addStretch();
     }
