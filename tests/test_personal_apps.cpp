@@ -22,6 +22,7 @@ int main(int argc,char** argv){
     sc::TwitchChat restoredTw(twPath);sc::YouTubeChat restoredYt(ytPath);
     require(restoredTw.clientId()=="testpersonalclient12345"&&restoredYt.clientSecret()=="TEST-PERSONAL-SECRET","Sign-out lost personal application settings");
     QFile encrypted(ytPath);require(encrypted.open(QIODevice::ReadOnly)&&!encrypted.readAll().contains("TEST-PERSONAL-SECRET"),"Google Client Secret stored unencrypted");
+    encrypted.close();
     sc::SecureStore twVault(twPath),ytVault(ytPath);
     auto tw=twVault.load();tw["access_token"]="old-token";tw["refresh_token"]="old-refresh";require(twVault.save(tw),"Cannot seed Twitch token fixture");
     auto yt=ytVault.load();yt["access_token"]="old-token";yt["refresh_token"]="old-refresh";require(ytVault.save(yt),"Cannot seed Google token fixture");
