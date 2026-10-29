@@ -1,6 +1,6 @@
 # Stream Chat OBS
 
-**Twitch and YouTube chats in one OBS dock.** The plugin runs on your computer without a project-operated server. [Русский](../README.md).
+**Twitch, YouTube and Kick chats in one OBS dock.** The plugin runs on your computer without a project-operated server. [Русский](../README.md).
 
 ![Stream Chat English interface](screenshots/chat-en.png)
 
@@ -8,18 +8,18 @@
 
 ## Features
 
-- Read Twitch and YouTube together. Each message has a compact platform marker, subtle color accent, and local time when the service supplies it.
+- Read Twitch, YouTube and Kick together. Each message has a compact platform marker, subtle color accent, and local time when the service supplies it.
 - Scrolling up holds your place. A down button counts new messages and takes you back to the latest ones.
-- Send text to Twitch, YouTube, or both connected chats. Both destinations are selected by default.
+- Send text to selected Twitch, YouTube and Kick chats. Kick is optional and disabled by default.
 - YouTube chat discovery starts after the broadcast begins. Viewer counts appear during a stream when the service provides them.
 - If the YouTube streaming connection stops delivering data, the plugin switches to the official chat polling API at a limited rate.
-- Sign in through a browser without copying tokens. Account data stays on this PC and is protected by Windows.
+- In version 0.4.0, register a personal application for each service, enter its keys in Settings and sign in through the browser. Windows encrypts the saved keys and sign-in data. Each account section links to our [registration guide](REGISTER_APPS_RU.md).
 - Settings include **Auto / Russian / English** and text size with a live preview. Message history is cleared when OBS closes.
 - Highlight your names, optionally hide named bots, and see when the last chat message arrived.
 
 ## How the plugins work together
 
-The **0.4.0 test branch** adds optional Kick chat. Enable it in Settings to show its card and green K marker. Reading only needs a channel name; sending requires signing in through your personal Kick developer application. Setup instructions are available inside Settings. Account validation is still in progress.
+The **0.4.0 test branch** uses personal developer applications for Twitch, YouTube and Kick. Each account section has a setup guide link. Enable Kick to show its card and green K marker. Kick reading only needs a channel name; sending requires sign-in. Final account checks are still in progress.
 
 Stream Chat works on its own. Stream Stats can read Chat's local CPU, tracked data and traffic counters when installed. Stream Notify may use Chat's saved Twitch and YouTube sign-ins to check live status; it does not change Chat's account data.
 
