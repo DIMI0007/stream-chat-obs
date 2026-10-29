@@ -60,14 +60,19 @@ jobs:
           $env:PATH = "$qtRoot/bin;$PWD/build_x64/qtwebsockets-install/bin;$env:PATH"
           $env:QT_PLUGIN_PATH = "$qtRoot/plugins"
           & ./build_x64/RelWithDebInfo/stream-chat-ui-preview.exe ui-previews
+          Write-Output "UI preview process exit: $LASTEXITCODE"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: StreamChat-UI-Previews
           path: ui-previews/*.png
-          if-no-files-found: error
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: StreamChat-Kick-Check
-          path: build_x64/RelWithDebInfo/stream-chat-kick-live-check.exe
+          path: |
+            build_x64/RelWithDebInfo/stream-chat-kick-live-check.exe
+            build_x64/RelWithDebInfo/stream-chat-ui-preview.exe
           if-no-files-found: error
