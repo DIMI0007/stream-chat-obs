@@ -208,6 +208,10 @@ QWidget* card(){auto* result=new QWidget;result->setObjectName("Card");return re
 QLabel* sectionTitle(const QString& text){auto* result=new QLabel(text);result->setObjectName("Section");return result;}
 QString compactStatus(QString value,const QString& platform){
     value.remove(platform+": ");
+    if(platform=="Kick"&&value.contains("укажите канал"))return "Укажите канал";
+    if(platform=="Kick"&&value.contains("укажите Client ID"))return "Настройте вход";
+    if(platform=="Kick"&&value.contains("повторный вход"))return "Войдите снова";
+    if(platform=="Kick"&&value.contains("ошибка получения канала (HTTP 404)"))return "Канал не найден";
     if(value.contains("активный эфир с чатом не найден",Qt::CaseInsensitive))return "Эфир не найден";
     if(value.contains("чат подключён",Qt::CaseInsensitive))return "Подключён";
     if(value.contains("не подключён",Qt::CaseInsensitive))return "Не подключён";
@@ -223,6 +227,10 @@ QString compactStatus(QString value,const QString& platform){
     return value.size()>22?value.left(21)+"…":value;
 }
 QString englishStatus(const QString& value){
+    if(value=="Укажите канал")return "Set a channel";
+    if(value=="Настройте вход")return "Set up sign-in";
+    if(value=="Войдите снова")return "Sign in again";
+    if(value=="Канал не найден")return "Channel not found";
     if(value=="Подключён")return "Connected";
     if(value=="Не подключён")return "Not connected";
     if(value=="Подтвердите вход")return "Confirm sign-in";
@@ -465,14 +473,14 @@ private:
         auto* channel=new QLineEdit(kick_.channel());channel->setMaxLength(100);channel->setObjectName("KickChannel");auto* channelLabel=addField({},channel);
         auto* clientId=new QLineEdit(kick_.clientId());clientId->setMaxLength(200);clientId->setObjectName("KickClientId");addField("Client ID",clientId);
         auto* secret=new QLineEdit(kick_.clientSecret());secret->setMaxLength(500);secret->setEchoMode(QLineEdit::Password);secret->setObjectName("KickClientSecret");addField("Client Secret",secret);
-        auto* storageHint=new QLabel;storageHint->setObjectName("Hint");storageHint->setWordWrap(true);accountLayout->addWidget(storageHint);
+        auto* storageHint=new QLabel;storageHint->setObjectName("Hint");storageHint->setWordWrap(true);storageHint->setStyleSheet("font-weight:400;color:#8ea1c0;");accountLayout->addWidget(storageHint);
         auto* callbackLabel=new QLabel;callbackLabel->setWordWrap(true);accountLayout->addWidget(callbackLabel);
         auto* callback=new QLineEdit(sc::KickChat::callback());callback->setReadOnly(true);callback->setObjectName("KickCallback");accountLayout->addWidget(callback);
         auto* copy=new QPushButton;accountLayout->addWidget(copy);connect(copy,&QPushButton::clicked,page,[]{QGuiApplication::clipboard()->setText(sc::KickChat::callback());});
         auto* save=new QPushButton;accountLayout->addWidget(save);
         auto* signIn=new QPushButton;accountLayout->addWidget(signIn);
         auto* signOut=new QPushButton;accountLayout->addWidget(signOut);
-        auto* accountStatus=new QLabel;accountStatus->setObjectName("Hint");accountStatus->setWordWrap(true);accountLayout->addWidget(accountStatus);
+        auto* accountStatus=new QLabel;accountStatus->setObjectName("Hint");accountStatus->setWordWrap(true);accountStatus->setStyleSheet("font-weight:400;color:#8ea1c0;");accountLayout->addWidget(accountStatus);
         auto* guideToggle=new QPushButton;guideToggle->setObjectName("KickGuideToggle");guideToggle->setCheckable(true);accountLayout->addWidget(guideToggle);
         auto* guide=new QLabel;guide->setObjectName("KickSetupGuide");guide->setWordWrap(true);guide->setTextFormat(Qt::PlainText);guide->setTextInteractionFlags(Qt::TextSelectableByMouse);guide->setStyleSheet("font-weight:400;color:#b8c7df;");guide->hide();accountLayout->addWidget(guide);
         auto* developerPage=new QPushButton;accountLayout->addWidget(developerPage);

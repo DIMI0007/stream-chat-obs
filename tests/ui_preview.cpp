@@ -93,10 +93,12 @@ int main(int argc,char** argv){
         if(!dock.grab().save(output+"/kick-guide-"+language+"-"+QString::number(width)+".png"))return previewResult(29);
         auto* back=page->findChild<QPushButton*>();back->click();app.processEvents();QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
         if(!card->isVisible()||dock.width()!=width)return previewResult(30);
-        dock.previewAppend(sc::ChatMessage{"Kick","kick-ui-1","42","KickViewer","<b>Kick message</b>"});dock.previewRedraw();app.processEvents();
+        dock.previewAppend(sc::ChatMessage{"Kick","kick-ui-1","42","KickViewer",language=="en"?"Hello from Kick!":"Привет из Kick!"});dock.previewRedraw();app.processEvents();
         auto* messages=dock.findChild<QTextEdit*>("ChatMessages");
-        if(!messages->toPlainText().contains("<b>Kick message</b>")||messages->document()->resource(QTextDocument::ImageResource,QUrl("stream-chat://icon/kick")).value<QPixmap>().isNull())return previewResult(31);
+        if(!messages->toPlainText().contains("KickViewer")||messages->document()->resource(QTextDocument::ImageResource,QUrl("stream-chat://icon/kick")).value<QPixmap>().isNull())return previewResult(31);
         if(!dock.grab().save(output+"/kick-chat-"+language+"-"+QString::number(width)+".png"))return previewResult(32);
+        dock.previewAppend(sc::ChatMessage{"Kick","kick-html","42","KickViewer","<b>literal text</b>"});
+        if(!messages->toPlainText().contains("<b>literal text</b>"))return previewResult(34);
         settings->click();app.processEvents();page=dock.findChild<QWidget*>("SettingsPage");page->findChild<QCheckBox*>("EnableKick")->setChecked(false);app.processEvents();
         if(!card->isHidden()||page->findChild<QWidget*>("KickAccountSettings")->isVisible())return previewResult(33);
         dock.hide();app.processEvents();
