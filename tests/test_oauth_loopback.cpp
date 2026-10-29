@@ -24,6 +24,11 @@ int main(int argc,char** argv){
     require(exchange(url,"GET /google/callback HTTP/1.1\r\nHost: attacker.example\r\n\r\n").startsWith("HTTP/1.1 400"),"Foreign Host accepted");
     const auto response=exchange(url,"GET /google/callback?state="+receiver.state().toUtf8()+"&code=TEST%2BCODE HTTP/1.1\r\nHost: "+host+"\r\n\r\n");
     require(response.startsWith("HTTP/1.1 200")&&code=="TEST+CODE"&&!receiver.active(),"Valid code callback or one-use shutdown failed");
-    std::cout<<"Google loopback OAuth Host, state, decoding and one-use lifecycle passed\n";
+    require(receiver.begin(0,"/kick/callback",false,true),"Kick localhost receiver did not start");
+    const auto kickUrl=receiver.redirect();require(kickUrl.host()=="localhost","Kick redirect hostname changed");
+    require(exchange(kickUrl,"GET /kick/callback?state=wrong&code=BAD HTTP/1.1\r\nHost: "+kickUrl.authority().toUtf8()+"\r\n\r\n").startsWith("HTTP/1.1 400")&&receiver.active(),"Kick invalid state accepted");
+    const auto kickResponse=exchange(kickUrl,"GET /kick/callback?state="+receiver.state().toUtf8()+"&code=KICK-CODE HTTP/1.1\r\nHost: "+kickUrl.authority().toUtf8()+"\r\n\r\n");
+    require(kickResponse.startsWith("HTTP/1.1 200")&&code=="KICK-CODE"&&!receiver.active(),"Kick callback failed");
+    std::cout<<"Google and Kick loopback OAuth Host, state, decoding and one-use lifecycle passed\n";
 }
 

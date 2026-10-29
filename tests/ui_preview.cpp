@@ -72,5 +72,32 @@ int main(int argc,char** argv){
         QTextCursor cursor(messages->document());cursor.movePosition(QTextCursor::Start);if(cursor.blockFormat().background().color()!=QColor("#193b34"))return 20;
         if(!filters.grab().save(output+"/chat-mentions.png"))return 21;
     }
+    for(const auto& language:{QString("ru"),QString("en")})for(int width:{275,360}){
+        {QSettings settings(config+"/ui.ini",QSettings::IniFormat);settings.setValue("language",language);settings.setValue("kickEnabled",false);settings.sync();}
+        ChatDock dock;dock.resize(width,740);dock.show();app.processEvents();
+        auto* card=dock.findChild<QWidget*>("KickCard");if(!card||card->isVisible())return 22;
+        auto* settings=dock.findChild<QPushButton*>("Settings");settings->click();app.processEvents();
+        auto* page=dock.findChild<QWidget*>("SettingsPage");auto* toggle=page->findChild<QCheckBox*>("EnableKick");
+        auto* account=page->findChild<QWidget*>("KickAccountSettings");
+        if(!toggle||!account||toggle->isChecked()||account->isVisible())return 23;
+        toggle->setChecked(true);app.processEvents();if(!account->isVisible()||card->isHidden())return 24;
+        auto* secret=account->findChild<QLineEdit*>("KickClientSecret");if(!secret||secret->echoMode()!=QLineEdit::Password)return 25;
+        auto* scroll=page->findChild<QScrollArea*>();scroll->ensureWidgetVisible(account,0,0);app.processEvents();
+        if(dock.width()!=width)return 26;
+        if(!dock.grab().save(output+"/kick-settings-"+language+"-"+QString::number(width)+".png"))return 27;
+        auto* guide=account->findChild<QLabel*>("KickSetupGuide");account->findChild<QPushButton*>("KickGuideToggle")->click();app.processEvents();
+        if(!guide->isVisible()||!guide->wordWrap()||!guide->text().contains(sc::KickChat::callback().mid(0,0)+"chat:write"))return 28;
+        scroll->ensureWidgetVisible(guide,0,0);app.processEvents();
+        if(!dock.grab().save(output+"/kick-guide-"+language+"-"+QString::number(width)+".png"))return 29;
+        auto* back=page->findChild<QPushButton*>();back->click();app.processEvents();
+        if(!card->isVisible()||dock.width()!=width)return 30;
+        dock.previewAppend(sc::ChatMessage{"Kick","kick-ui-1","42","KickViewer","<b>Kick message</b>"});dock.previewRedraw();app.processEvents();
+        auto* messages=dock.findChild<QTextEdit*>();
+        if(!messages->toPlainText().contains("<b>Kick message</b>")||messages->document()->resource(QTextDocument::ImageResource,QUrl("stream-chat://icon/kick")).value<QPixmap>().isNull())return 31;
+        if(!dock.grab().save(output+"/kick-chat-"+language+"-"+QString::number(width)+".png"))return 32;
+        settings->click();app.processEvents();page=dock.findChild<QWidget*>("SettingsPage");page->findChild<QCheckBox*>("EnableKick")->setChecked(false);app.processEvents();
+        if(!card->isHidden()||page->findChild<QWidget*>("KickAccountSettings")->isVisible())return 33;
+        dock.hide();app.processEvents();
+    }
     return 0;
 }

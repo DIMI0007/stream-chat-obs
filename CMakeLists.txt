@@ -29,6 +29,9 @@ add_library(${CMAKE_PROJECT_NAME} MODULE
   src/usage.hpp
   src/twitch_chat.cpp
   src/twitch_chat.hpp
+  src/kick_chat.cpp
+  src/kick_chat.hpp
+  src/kick_wire.hpp
   src/youtube_chat.cpp
   src/youtube_chat.hpp
   src/youtube_wire.hpp)
@@ -65,7 +68,13 @@ add_test(NAME secure-loopback-oauth COMMAND stream-chat-oauth-tests)
 set_tests_properties(secure-loopback-oauth PROPERTIES
   ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
 
-add_executable(stream-chat-ui-preview tests/ui_preview.cpp src/twitch_chat.cpp src/youtube_chat.cpp src/oauth_loopback.hpp)
+add_executable(stream-chat-kick-wire-tests tests/test_kick_wire.cpp)
+target_link_libraries(stream-chat-kick-wire-tests PRIVATE Qt6::Core)
+add_test(NAME kick-chat-wire-format COMMAND stream-chat-kick-wire-tests)
+set_tests_properties(kick-chat-wire-format PROPERTIES
+  ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
+
+add_executable(stream-chat-ui-preview tests/ui_preview.cpp src/twitch_chat.cpp src/youtube_chat.cpp src/kick_chat.cpp src/oauth_loopback.hpp)
 get_target_property(_obs_includes OBS::libobs INTERFACE_INCLUDE_DIRECTORIES)
 get_target_property(_frontend_includes OBS::obs-frontend-api INTERFACE_INCLUDE_DIRECTORIES)
 target_include_directories(stream-chat-ui-preview PRIVATE ${_obs_includes} ${_frontend_includes})

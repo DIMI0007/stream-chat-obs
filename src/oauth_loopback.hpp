@@ -29,13 +29,13 @@ public:
         });
     }
     ~OAuthLoopback() override {stop();}
-    bool begin(quint16 port,const QString& callbackPath,bool implicit=true) {
+    bool begin(quint16 port,const QString& callbackPath,bool implicit=true,bool localhostName=false) {
         stop();
         if(!callbackPath.startsWith('/')||!server_.listen(QHostAddress::LocalHost,port))return false;
         path_=callbackPath;implicit_=implicit;
         state_=QString::number(QRandomGenerator::system()->generate64(),16).rightJustified(16,'0')+
             QString::number(QRandomGenerator::system()->generate64(),16).rightJustified(16,'0');
-        origin_=QString("http://127.0.0.1:%1").arg(server_.serverPort());
+        origin_=QString(localhostName?"http://localhost:%1":"http://127.0.0.1:%1").arg(server_.serverPort());
         timeout_.start(180000);return true;
     }
     void stop() {
