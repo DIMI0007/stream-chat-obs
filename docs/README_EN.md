@@ -4,7 +4,7 @@
 
 ![Stream Chat English interface](screenshots/chat-en.png)
 
-*Version 0.3.17 UI preview from an isolated test host; messages and connections are sample data.* [Russian interface](screenshots/chat-ru.png) · [Narrow dock](screenshots/chat-narrow-ru.png) · [Settings](screenshots/settings-en.png).
+*Version 0.4.0 UI preview from an isolated test host; messages and connections are sample data.* [Russian interface](screenshots/chat-ru.png) · [Narrow dock](screenshots/chat-narrow-ru.png) · [Settings](screenshots/settings-en.png).
 
 ## Features
 
@@ -19,7 +19,7 @@
 
 ## How the plugins work together
 
-The **0.4.0 test branch** uses personal developer applications for Twitch, YouTube and Kick. Each account section has a setup guide link. Enable Kick to show its card and green K marker. Kick reading only needs a channel name; sending requires sign-in. Final account checks are still in progress.
+Version 0.4.0 uses personal developer applications for Twitch, YouTube and Kick. Each account section has a setup guide link. Enable Kick to show its card and green K marker. Kick reading only needs a channel name; sending requires sign-in. Kick reading, sign-in, token refresh and sending were verified with a real account.
 
 Stream Chat works on its own. Stream Stats can read Chat's local CPU, tracked data and traffic counters when installed. Stream Notify may use Chat's saved Twitch and YouTube sign-ins to check live status; it does not change Chat's account data.
 
