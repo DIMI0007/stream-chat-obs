@@ -17,6 +17,7 @@ const QString scopes="user:read channel:read chat:write";
 KickChat::KickChat(QString path,QObject* parent):QObject(parent),vault_(std::move(path)),login_(this){
     bool ok=false;account_=vault_.load(&ok);if(!ok)status_="Kick: не удалось прочитать защищённые настройки";
     retry_.setSingleShot(true);expiry_.setSingleShot(true);heartbeat_.setInterval(20000);
+    viewerTimer_.setInterval(30000);connect(&viewerTimer_,&QTimer::timeout,this,&KickChat::pollViewers);
     connect(&retry_,&QTimer::timeout,this,&KickChat::start);
     connect(&expiry_,&QTimer::timeout,this,&KickChat::refreshToken);
     connect(&heartbeat_,&QTimer::timeout,this,[this]{
@@ -77,7 +78,7 @@ void KickChat::request(const QUrl& url,const QByteArray& method,const QByteArray
     });
 }
 void KickChat::stop(){
-    ++generation_;login_.stop();verifier_.clear();retry_.stop();heartbeat_.stop();expiry_.stop();
+    ++generation_;login_.stop();verifier_.clear();retry_.stop();heartbeat_.stop();expiry_.stop();viewerTimer_.stop();viewerRequest_=false;viewerCount_=-1;viewerUpdated_={};
     ready_=false;authorized_=false;resolving_=false;refreshing_=false;authorizing_=false;awaitingPong_=false;
     if(socket_){socket_->disconnect(this);socket_->abort();socket_->deleteLater();socket_=nullptr;}
     const auto pending=replies_.values();replies_.clear();for(auto* reply:pending)reply->abort();
@@ -85,6 +86,28 @@ void KickChat::stop(){
 }
 void KickChat::setEnabled(bool value){if(enabled_==value)return;enabled_=value;stop();if(active())start();else setStatus("Kick: отключён");Q_EMIT changed();}
 void KickChat::setVisible(bool value){if(visible_==value)return;visible_=value;stop();if(active())start();else setStatus(enabled_?"Kick: приостановлен":"Kick: отключён");Q_EMIT changed();}
+void KickChat::setStreamActive(bool value){
+    if(streamActive_==value)return;streamActive_=value;
+    if(!value){viewerTimer_.stop();viewerCount_=-1;viewerUpdated_={};Q_EMIT changed();return;}
+    if(active()&&!channel().isEmpty()){
+#ifndef STREAM_CHAT_PREVIEW
+        viewerTimer_.setInterval(30000);viewerTimer_.start();pollViewers();
+#endif
+    }
+}
+void KickChat::updateViewers(const QJsonObject& data){
+    if(!streamActive_)return;const auto live=data.value("livestream").toObject();
+    viewerCount_=live.value("is_live").toBool()?live.value("viewer_count").toInt(-1):-1;
+    viewerUpdated_=QDateTime::currentDateTimeUtc();Q_EMIT changed();
+}
+void KickChat::pollViewers(){
+    if(!active()||!streamActive_||viewerRequest_||resolving_||channel().isEmpty())return;
+    viewerRequest_=true;request(QUrl("https://kick.com/api/v2/channels/"+channel()),"GET",{},false,[this](int http,const QJsonObject& data){
+        viewerRequest_=false;if(!streamActive_)return;
+        if(http==429||http==403){viewerTimer_.setInterval(120000);Q_EMIT changed();return;}
+        if(http==200){viewerTimer_.setInterval(30000);updateViewers(data);}
+    });
+}
 bool KickChat::configure(const QString& id,const QString& secret,const QString& slug){
     const auto channelName=slug.trimmed().toLower();
     if(!channelName.isEmpty()&&!kick_wire::validChannel(channelName)){setStatus("Kick: ошибка — укажите имя канала без ссылки");return false;}
@@ -114,6 +137,7 @@ void KickChat::resolve(){
         roomId_=data.value("chatroom").toObject().value("id").toVariant().toString();broadcasterId_=data.value("user_id").toVariant().toString();
         static const QRegularExpression numeric("^[0-9]{1,20}$");
         if(!numeric.match(roomId_).hasMatch()||!numeric.match(broadcasterId_).hasMatch()){setStatus("Kick: ошибка формата канала");return;}
+        updateViewers(data);if(streamActive_&&!viewerTimer_.isActive()){viewerTimer_.setInterval(30000);viewerTimer_.start();}
         openSocket();
     });
 }

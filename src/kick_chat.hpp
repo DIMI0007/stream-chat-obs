@@ -17,6 +17,9 @@ public:
     explicit KickChat(QString path,QObject* parent=nullptr);
     ~KickChat() override;
     void setEnabled(bool enabled);void setVisible(bool visible);
+    void setStreamActive(bool active);
+    int viewerCount()const{return viewerCount_;}
+    bool viewerFresh()const{return viewerUpdated_.isValid()&&viewerUpdated_.secsTo(QDateTime::currentDateTimeUtc())<90;}
     bool configure(const QString& clientId,const QString& clientSecret,const QString& channel);
     void signIn();void signOut();void send(const QString& text);
     bool ready()const{return ready_;}
@@ -38,10 +41,12 @@ private:
     void stop();void start();void resolve();void openSocket();void retry();void setStatus(const QString& text);
     bool saveTokens(const QJsonObject& tokens);void refreshToken();void validateAccount(bool allowRefresh=true);
     void receive(const QString& text);void sendFrame(const QJsonObject& frame);
+    void pollViewers();void updateViewers(const QJsonObject& channel);
     bool active()const{return enabled_&&visible_;}
     SecureStore vault_;QJsonObject account_;QNetworkAccessManager http_;OAuthLoopback login_;
     QSet<QNetworkReply*> replies_;QWebSocket* socket_=nullptr;
-    QTimer retry_,heartbeat_,expiry_;QSet<QString> seen_;QQueue<QString> seenOrder_;
+    QTimer retry_,heartbeat_,expiry_,viewerTimer_;QSet<QString> seen_;QQueue<QString> seenOrder_;
+    QDateTime viewerUpdated_;int viewerCount_=-1;bool streamActive_=false,viewerRequest_=false;
     QString status_="Kick: не подключён",verifier_,roomId_,broadcasterId_;
     quint64 generation_=0;int attempts_=0;bool enabled_=false,visible_=false,ready_=false,authorized_=false;
     bool resolving_=false,refreshing_=false,authorizing_=false,sending_=false,awaitingPong_=false;
