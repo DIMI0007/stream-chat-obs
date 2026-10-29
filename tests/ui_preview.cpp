@@ -41,6 +41,7 @@ int main(int argc,char** argv){
         QPixmap sampleAvatar(24,24);sampleAvatar.fill(Qt::transparent);{
             QPainter painter(&sampleAvatar);painter.setRenderHint(QPainter::Antialiasing);
             painter.setBrush(QColor("#bb769b"));painter.setPen(Qt::NoPen);painter.drawEllipse(QRectF(0,0,24,24));
+            painter.drawPixmap(14,14,10,10,messagePlatformIcon("YouTube"));
         }
         previewDock.previewAvatar("viewer-2",sampleAvatar);app.processEvents();
         const auto avatar=previewDock.findChild<QTextEdit*>("ChatMessages")->document()->resource(QTextDocument::ImageResource,QUrl("stream-chat://avatar/viewer-2")).value<QPixmap>();
