@@ -45,7 +45,7 @@ jobs:
           Copy-Item docs/REGISTER_APPS_RU.md package/REGISTER_APPS_RU.md
           Copy-Item docs/KICK_RU.md package/KICK_RU.md
           $spec=Get-Content buildspec.json -Raw|ConvertFrom-Json
-          [ordered]@{product='Stream Chat OBS';version=$spec.version;commit=$env:GITHUB_SHA;obs='33.0.0';qt='6.11.1';packageType='unsigned-alpha';platforms=@('Twitch','YouTube','Kick');liveAccountValidation='pending'}|ConvertTo-Json|Set-Content package/BUILD_INFO.json -Encoding utf8
+          [ordered]@{product='Stream Chat OBS';version=$spec.version;commit=$env:GITHUB_SHA;obs='33.0.0';qt='6.11.1';packageType='unsigned-alpha';platforms=@('Twitch','YouTube','Kick');liveAccountValidation=[ordered]@{Kick='verified with a real account: read, sign-in, refresh and send';Twitch='pending real broadcast verification';YouTube='pending real broadcast verification'}}|ConvertTo-Json -Depth 4|Set-Content package/BUILD_INFO.json -Encoding utf8
       - uses: actions/upload-artifact@v4
         with:
           name: StreamChatOBS-OBS33-Windows-x64
