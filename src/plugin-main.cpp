@@ -312,7 +312,7 @@ public:
 #ifdef STREAM_CHAT_PREVIEW
     void previewAppend(const sc::ChatMessage& message){history_.enqueue(message);appendMessage(message);}
     void previewRedraw(){redrawMessages();}
-    void previewCounters(quint64 tw,quint64 yt,quint64 ki){streaming_=true;seenThisStream_=true;twitchMessages_=tw;youtubeMessages_=yt;kickMessages_=ki;refresh();}
+    void previewCounters(quint64 tw,quint64 yt,quint64 ki){previewStreaming_=true;streaming_=true;seenThisStream_=true;twitchMessages_=tw;youtubeMessages_=yt;kickMessages_=ki;refresh();}
 #endif
     ChatDock():twitch_(configPath("twitch-account.dat"),this),youtube_(configPath("youtube-account.dat"),this),kick_(configPath("kick-account.dat"),this){
         {QSettings saved(configPath("ui.ini"),QSettings::IniFormat);textScale_=std::clamp(saved.value("textScale",100).toInt(),80,140);
@@ -396,7 +396,11 @@ public:
         streaming_=anyStreamingOutput();twitch_.setStreamActive(streaming_);youtube_.setStreamActive(streaming_);kick_.setStreamActive(streaming_);
         kick_.setEnabled(kickEnabled_);refresh();updateLastMessage();updateMetrics();
     }
-    void setStreaming(bool active){if(streaming_==active)return;streaming_=active;seenThisStream_=false;twitch_.setStreamActive(active);youtube_.setStreamActive(active);kick_.setStreamActive(active);refresh();}
+    void setStreaming(bool active){
+#ifdef STREAM_CHAT_PREVIEW
+        if(previewStreaming_)return;
+#endif
+        if(streaming_==active)return;streaming_=active;seenThisStream_=false;twitch_.setStreamActive(active);youtube_.setStreamActive(active);kick_.setStreamActive(active);refresh();}
 protected:
     void resizeEvent(QResizeEvent* event)override{QWidget::resizeEvent(event);layoutRecipients();}
     void showEvent(QShowEvent* event)override{QWidget::showEvent(event);setStreaming(anyStreamingOutput());twitch_.setVisible(true);youtube_.setVisible(true);kick_.setVisible(true);QTimer::singleShot(0,this,[this]{if(isVisible()){twitch_.setVisible(true);youtube_.setVisible(true);kick_.setVisible(true);refresh();}});trafficTimer_.start();updateLastMessage();updateMetrics();if(!pending_.isEmpty())batch_.start();if(emotesDirty_)emoteRedraw_.start();}
@@ -709,6 +713,9 @@ private:
     }
     sc::TwitchChat twitch_;sc::YouTubeChat youtube_;sc::KickChat kick_;
     QWidget* recipientGroups_=nullptr;QVBoxLayout* recipientLayout_=nullptr;QVector<QWidget*> recipientPairs_;QString recipientLayoutKey_;
+#ifdef STREAM_CHAT_PREVIEW
+    bool previewStreaming_=false;
+#endif
     QWidget* kickCard_=nullptr;QLabel* kickViewers_=nullptr;QLabel* kickStatus_=nullptr;QLabel* kickCount_=nullptr;QAbstractButton* kickTarget_=nullptr;QPushButton* kickLogin_=nullptr;QPushButton* kickLogout_=nullptr;bool kickEnabled_=false,kickSent_=false;quint64 kickMessages_=0;QStackedLayout* pages_=nullptr;WrappedChatEdit* messages_=nullptr;QLabel* twitchStatus_=nullptr;QLabel* youtubeStatus_=nullptr;QLabel* twitchViewers_=nullptr;QLabel* youtubeViewers_=nullptr;QLabel* code_=nullptr;QLabel* delivery_=nullptr;QLabel* totalCount_=nullptr;QLabel* twitchCount_=nullptr;QLabel* youtubeCount_=nullptr;QLabel* traffic_=nullptr;QLabel* cpuValue_=nullptr;QLabel* memoryValue_=nullptr;QLabel* chatTitle_=nullptr;QLabel* recipientHint_=nullptr;QLabel* usageTitle_=nullptr;QLabel* memoryName_=nullptr;QWidget* usageCard_=nullptr;QPushButton* settings_=nullptr;QPushButton* scrollBottom_=nullptr;
     QLineEdit* input_=nullptr;QAbstractButton* target_=nullptr;QPushButton* send_=nullptr;QPushButton* login_=nullptr;QPushButton* logout_=nullptr;
     QAbstractButton* youtubeTarget_=nullptr;QComboBox* broadcast_=nullptr;QPushButton* googleLogin_=nullptr;QPushButton* googleLogout_=nullptr;
