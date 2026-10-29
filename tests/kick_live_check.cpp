@@ -3,6 +3,20 @@
 #include <QApplication>
 #include <QFileInfo>
 #include <QTextStream>
+#include <QDesktopServices>
+#include <QSaveFile>
+
+class CaptureBrowser final:public QObject{
+    Q_OBJECT
+public:
+    QString output;
+public Q_SLOTS:
+    void open(const QUrl& url){
+        if(url.scheme()!="https"||url.host()!="id.kick.com"||url.path()!="/oauth/authorize")return;
+        QSaveFile file(output);if(file.open(QIODevice::WriteOnly)){file.write(url.toEncoded());file.commit();}
+        QTextStream(stdout)<<"Authorization URL prepared for the test browser"<<Qt::endl;
+    }
+};
 
 int main(int argc,char** argv){
     QApplication app(argc,argv);const auto args=app.arguments();
@@ -14,6 +28,8 @@ int main(int argc,char** argv){
         if(!ok||account.value("refresh_token").toString().isEmpty())return 4;
         account["expires_at"]=0;if(!store.save(account))return 5;
     }
+    CaptureBrowser browser;browser.output=QFileInfo(path).absolutePath()+"/kick-authorize-url.txt";
+    if(mode=="--sign-in")QDesktopServices::setUrlHandler("https",&browser,"open");
     sc::KickChat kick(path);int received=0;bool passed=false;
     auto report=[&]{QTextStream out(stdout);out<<kick.status(true)<<" | read="<<kick.ready()<<" send="<<kick.canSend()<<Qt::endl;
         if(kick.ready()&&(mode=="--read"||kick.canSend())){passed=true;QTimer::singleShot(3000,&app,&QCoreApplication::quit);}};
@@ -23,3 +39,4 @@ int main(int argc,char** argv){
     if(mode=="--sign-in")QTimer::singleShot(500,&kick,&sc::KickChat::signIn);
     QTimer::singleShot(180000,&app,&QCoreApplication::quit);app.exec();return passed?0:1;
 }
+#include "kick_live_check.moc"
