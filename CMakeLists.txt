@@ -94,3 +94,10 @@ target_link_libraries(stream-chat-ui-preview PRIVATE Qt6::Core Qt6::Gui Qt6::Wid
 if(MSVC)
   target_compile_options(stream-chat-ui-preview PRIVATE /W4 /utf-8 /permissive-)
 endif()
+
+add_executable(stream-chat-personal-app-tests tests/test_personal_apps.cpp src/twitch_chat.cpp src/youtube_chat.cpp src/oauth_loopback.hpp)
+target_compile_definitions(stream-chat-personal-app-tests PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_link_libraries(stream-chat-personal-app-tests PRIVATE Qt6::Core Qt6::Gui Qt6::Network Qt6::WebSockets crypt32)
+add_test(NAME personal-platform-applications COMMAND stream-chat-personal-app-tests)
+set_tests_properties(personal-platform-applications PROPERTIES ENVIRONMENT_MODIFICATION
+  "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>;PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::WebSockets>")

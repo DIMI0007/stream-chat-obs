@@ -22,6 +22,9 @@ public:
     void setStreamActive(bool active);
     void signIn();
     void signOut();
+    bool configure(const QString& clientId);
+    QString clientId()const{return tokens_.value("client_id").toString();}
+    bool configured()const{return !clientId().isEmpty();}
     void send(const QString& text);
     bool ready()const{return ready_;}
     QString accountLogin()const{return accountLogin_;}
@@ -43,6 +46,7 @@ private:
     void validate(bool allowRefresh=true);
     void refresh();
     bool saveTokens(const QJsonObject& tokens);
+    bool clearTokens();
     void pollDevice();
     void openSocket(const QUrl& url=QUrl("wss://eventsub.wss.twitch.tv/ws"),bool migration=false);
     void receive(QWebSocket* socket,const QString& text,bool migration);

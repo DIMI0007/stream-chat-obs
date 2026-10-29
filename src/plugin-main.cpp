@@ -209,7 +209,7 @@ QLabel* sectionTitle(const QString& text){auto* result=new QLabel(text);result->
 QString compactStatus(QString value,const QString& platform){
     value.remove(platform+": ");
     if(platform=="Kick"&&value.contains("укажите канал"))return "Укажите канал";
-    if(platform=="Kick"&&value.contains("укажите Client ID"))return "Настройте вход";
+    if(value.contains("укажите Client ID"))return "Настройте вход";
     if(platform=="Kick"&&value.contains("повторный вход"))return "Войдите снова";
     if(platform=="Kick"&&value.contains("ошибка получения канала (HTTP 404)"))return "Канал не найден";
     if(value.contains("активный эфир с чатом не найден",Qt::CaseInsensitive))return "Эфир не найден";
@@ -323,12 +323,12 @@ public:
 
         auto* twitchCard=card();auto* twitchLayout=new QVBoxLayout(twitchCard);twitchLayout->setContentsMargins(8,6,8,6);twitchLayout->setSpacing(5);
         auto* twitchHead=new QHBoxLayout;twitchHead->setSpacing(6);twitchHead->addWidget(new PlatformBadge("Twitch"));twitchHead->addWidget(sectionTitle("Twitch"));twitchViewers_=new QLabel;twitchViewers_->setObjectName("Hint");twitchViewers_->setToolTip("Смотрят Twitch сейчас");twitchHead->addWidget(twitchViewers_);twitchStatus_=new QLabel;twitchStatus_->setAlignment(Qt::AlignRight|Qt::AlignVCenter);twitchStatus_->setWordWrap(true);twitchStatus_->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Preferred);twitchHead->addWidget(twitchStatus_,1);login_=new QPushButton("Войти");twitchHead->addWidget(login_);logout_=new QPushButton("×");logout_->setObjectName("Disconnect");logout_->setToolTip("Отключить Twitch");twitchHead->addWidget(logout_);twitchLayout->addLayout(twitchHead);
-        connect(login_,&QPushButton::clicked,&twitch_,&sc::TwitchChat::signIn);connect(logout_,&QPushButton::clicked,&twitch_,&sc::TwitchChat::signOut);
+        connect(login_,&QPushButton::clicked,this,[this]{if(twitch_.configured())twitch_.signIn();else openSettings();});connect(logout_,&QPushButton::clicked,&twitch_,&sc::TwitchChat::signOut);
         code_=new QLabel;code_->setObjectName("Callout");code_->setTextFormat(Qt::PlainText);code_->setWordWrap(true);code_->setTextInteractionFlags(Qt::TextSelectableByMouse);code_->hide();twitchLayout->addWidget(code_);layout->addWidget(twitchCard);
 
         auto* youtubeCard=card();auto* youtubeLayout=new QVBoxLayout(youtubeCard);youtubeLayout->setContentsMargins(8,6,8,6);youtubeLayout->setSpacing(5);
         auto* youtubeHead=new QHBoxLayout;youtubeHead->setSpacing(6);youtubeHead->addWidget(new PlatformBadge("YouTube"));youtubeHead->addWidget(sectionTitle("YouTube"));youtubeViewers_=new QLabel;youtubeViewers_->setObjectName("Hint");youtubeViewers_->setToolTip("Смотрят YouTube сейчас");youtubeHead->addWidget(youtubeViewers_);youtubeStatus_=new QLabel;youtubeStatus_->setAlignment(Qt::AlignRight|Qt::AlignVCenter);youtubeStatus_->setWordWrap(true);youtubeStatus_->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Preferred);youtubeHead->addWidget(youtubeStatus_,1);googleLogin_=new QPushButton("Войти");youtubeHead->addWidget(googleLogin_);googleLogout_=new QPushButton("×");googleLogout_->setObjectName("Disconnect");googleLogout_->setToolTip("Отключить YouTube");youtubeHead->addWidget(googleLogout_);youtubeLayout->addLayout(youtubeHead);
-        connect(googleLogin_,&QPushButton::clicked,&youtube_,&sc::YouTubeChat::signIn);connect(googleLogout_,&QPushButton::clicked,&youtube_,&sc::YouTubeChat::signOut);
+        connect(googleLogin_,&QPushButton::clicked,this,[this]{if(youtube_.configured())youtube_.signIn();else openSettings();});connect(googleLogout_,&QPushButton::clicked,&youtube_,&sc::YouTubeChat::signOut);
         broadcast_=new QComboBox;broadcast_->addItem("Выберите эфир",QString());youtubeLayout->addWidget(broadcast_);layout->addWidget(youtubeCard);
         connect(broadcast_,&QComboBox::currentIndexChanged,this,[this](int index){const auto id=broadcast_->itemData(index).toString();if(!id.isEmpty())youtube_.selectChat(id);});
         connect(&youtube_,&sc::YouTubeChat::broadcasts,this,[this](const QJsonArray& choices){
@@ -465,6 +465,29 @@ private:
         connect(highlight,&QCheckBox::toggled,page,[saveFilters](bool){saveFilters();});
         connect(hideBots,&QCheckBox::toggled,page,[saveFilters](bool){saveFilters();});
         connect(names,&QLineEdit::editingFinished,page,saveFilters);connect(bots,&QLineEdit::editingFinished,page,saveFilters);
+        auto addPersonalAccount=[this,page,outer,choices](bool youtube){
+            auto* group=new QWidget;group->setObjectName(youtube?"YouTubePersonalSettings":"TwitchPersonalSettings");
+            group->setStyleSheet("QWidget#YouTubePersonalSettings,QWidget#TwitchPersonalSettings{background:#0b131e;border:1px solid #263244;border-radius:8px;}");outer->addWidget(group);
+            auto* box=new QVBoxLayout(group);box->setContentsMargins(8,8,8,8);box->setSpacing(6);
+            box->addWidget(sectionTitle(youtube?"YouTube":"Twitch"));
+            auto* hint=new QLabel;hint->setWordWrap(true);hint->setStyleSheet("font-weight:400;color:#8ea1c0;");box->addWidget(hint);
+            box->addWidget(new QLabel("Client ID"));auto* id=new QLineEdit(youtube?youtube_.clientId():twitch_.clientId());id->setMaxLength(240);id->setObjectName(youtube?"YouTubeClientId":"TwitchClientId");box->addWidget(id);
+            QLineEdit* secret=nullptr;
+            if(youtube){box->addWidget(new QLabel("Client Secret"));secret=new QLineEdit(youtube_.clientSecret());secret->setObjectName("YouTubeClientSecret");secret->setEchoMode(QLineEdit::Password);secret->setMaxLength(500);box->addWidget(secret);}
+            auto* save=new QPushButton;box->addWidget(save);auto* login=new QPushButton;box->addWidget(login);auto* instructions=new QPushButton;instructions->setObjectName(youtube?"YouTubeSetupGuide":"TwitchSetupGuide");box->addWidget(instructions);
+            auto* status=new QLabel;status->setWordWrap(true);status->setStyleSheet("font-weight:400;color:#8ea1c0;");box->addWidget(status);
+            auto update=[this,youtube,hint,save,login,instructions,status]{
+                hint->setText(youtube?(english_?"Create a personal Google desktop application, then paste its keys here. They are encrypted on this PC.":"Создайте личное приложение Google для компьютера и вставьте ключи сюда. Они сохраняются зашифрованными на этом ПК."):(english_?"Create a personal Twitch application with client type Public. Only Client ID is needed; no secret.":"Создайте личное приложение Twitch с типом Public. Нужен только Client ID, без секрета."));
+                save->setText(english_?"Save application":"Сохранить приложение");login->setText(english_?"Sign in":"Войти в аккаунт");instructions->setText(english_?"Connection guide on GitHub":"Инструкция подключения в GitHub");
+                const auto raw=youtube?youtube_.status():twitch_.status();status->setText(english_?englishStatus(compactStatus(raw,youtube?"YouTube":"Twitch")):raw);
+            };
+            update();for(auto* choice:*choices)connect(choice,&QPushButton::clicked,page,update);
+            if(youtube)connect(&youtube_,&sc::YouTubeChat::changed,page,update);else connect(&twitch_,&sc::TwitchChat::changed,page,update);
+            auto persist=[this,youtube,id,secret]{if(activeSends_)return false;return youtube?youtube_.configure(id->text(),secret->text()):twitch_.configure(id->text());};
+            connect(save,&QPushButton::clicked,page,[persist]{persist();});connect(login,&QPushButton::clicked,page,[this,youtube,persist]{if(persist()){if(youtube)youtube_.signIn();else twitch_.signIn();}});
+            connect(instructions,&QPushButton::clicked,page,[youtube]{QDesktopServices::openUrl(QUrl(QString("https://github.com/DIMI0007/stream-chat-obs/blob/main/docs/REGISTER_APPS_RU.md#")+(youtube?"youtube":"twitch")));});
+        };
+        addPersonalAccount(false);addPersonalAccount(true);
         auto* kickCard=new QWidget;kickCard->setObjectName("LanguageCard");outer->addWidget(kickCard);
         auto* kickLayout=new QVBoxLayout(kickCard);kickLayout->setContentsMargins(8,8,8,8);kickLayout->setSpacing(6);
         auto* enableKick=new QCheckBox;enableKick->setObjectName("EnableKick");enableKick->setChecked(kickEnabled_);kickLayout->addWidget(enableKick);
@@ -484,6 +507,9 @@ private:
         auto* guideToggle=new QPushButton;guideToggle->setObjectName("KickGuideToggle");guideToggle->setCheckable(true);accountLayout->addWidget(guideToggle);
         auto* guide=new QLabel;guide->setObjectName("KickSetupGuide");guide->setWordWrap(true);guide->setTextFormat(Qt::PlainText);guide->setTextInteractionFlags(Qt::TextSelectableByMouse);guide->setStyleSheet("font-weight:400;color:#b8c7df;");guide->hide();accountLayout->addWidget(guide);
         auto* developerPage=new QPushButton;accountLayout->addWidget(developerPage);
+        auto* githubGuide=new QPushButton;accountLayout->addWidget(githubGuide);githubGuide->setText(english_?"Connection guide on GitHub":"Инструкция подключения в GitHub");
+        connect(githubGuide,&QPushButton::clicked,page,[]{QDesktopServices::openUrl(QUrl("https://github.com/DIMI0007/stream-chat-obs/blob/main/docs/REGISTER_APPS_RU.md#kick"));});
+        for(auto* choice:*choices)connect(choice,&QPushButton::clicked,page,[this,githubGuide]{githubGuide->setText(english_?"Connection guide on GitHub":"Инструкция подключения в GitHub");});
         connect(developerPage,&QPushButton::clicked,page,[]{QDesktopServices::openUrl(QUrl("https://kick.com/settings/developer"));});
         connect(guideToggle,&QPushButton::toggled,guide,&QWidget::setVisible);
         auto updateKickSettings=[this,enableKick,channel,channelLabel,storageHint,callbackLabel,copy,save,signIn,signOut,accountStatus,guideToggle,guide,developerPage]{
@@ -622,6 +648,7 @@ private:
         if(showCounts){totalCount_->setText("✉ "+QString::number(twitchMessages_+youtubeMessages_+kickMessages_));twitchCount_->setText("✉ "+QString::number(twitchMessages_));youtubeCount_->setText("✉ "+QString::number(youtubeMessages_));}
         const bool twitchBusy=code_->isVisible()&&twitch_.status().contains("подтвердите",Qt::CaseInsensitive);if(code_->isVisible()&&!twitchBusy&&!twitch_.ready())code_->hide();
         login_->setVisible(!twitch_.ready());logout_->setVisible(twitch_.ready());login_->setEnabled(!twitchBusy);
+        login_->setText(twitch_.configured()?(english_?"Sign in":"Войти"):(english_?"Set up":"Настроить"));googleLogin_->setText(youtube_.configured()?(english_?"Sign in":"Войти"):(english_?"Set up":"Настроить"));
         googleLogin_->setVisible(!youtube_.signedIn());googleLogout_->setVisible(youtube_.signedIn());
         const bool youtubeBusy=youtube_.status().contains("подтвердите",Qt::CaseInsensitive)||youtube_.status().contains("завершаем",Qt::CaseInsensitive);googleLogin_->setEnabled(!youtubeBusy);broadcast_->setVisible(youtube_.signedIn()&&broadcast_->count()>2);
         delivery_->setVisible(!delivery_->text().isEmpty());

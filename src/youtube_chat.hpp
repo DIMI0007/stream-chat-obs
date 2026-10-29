@@ -21,7 +21,11 @@ public:
     ~YouTubeChat()override;
     void setVisible(bool active);void setStreamActive(bool active);
     void signIn();void signOut();void discover();void selectChat(const QString& id);void send(const QString& text);
-    bool ready()const{return ready_;}bool signedIn()const{return !tokens_.value("access_token").toString().isEmpty();}QString status()const{return status_;}
+    bool configure(const QString& clientId,const QString& clientSecret);
+    QString clientId()const{return tokens_.value("client_id").toString();}
+    QString clientSecret()const{return tokens_.value("client_secret").toString();}
+    bool configured()const{return !clientId().isEmpty()&&!clientSecret().isEmpty();}
+    bool ready()const{return ready_;}bool signedIn()const{return configured()&&!tokens_.value("access_token").toString().isEmpty();}QString status()const{return status_;}
     int viewerCount()const{return viewerCount_;}
     bool viewerFresh()const{return viewerUpdated_.isValid()&&viewerUpdated_.secsTo(QDateTime::currentDateTimeUtc())<180;}
 Q_SIGNALS:
@@ -31,6 +35,7 @@ private:
     using Reply=std::function<void(int,const QJsonObject&)>;
     void request(const QUrl& url,const QByteArray& method,const QByteArray& body,bool authorized,Reply callback);
     void setStatus(const QString& value);bool saveTokens(const QJsonObject& tokens);void refresh();
+    bool clearTokens();
     void openStream();void stopStream();void stopNetwork();void receive();void retry();
     void startFallback();void pollFallback();
     void pollViewers();

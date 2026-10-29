@@ -52,6 +52,8 @@ int main(int argc,char** argv){
         auto* settingsPage=previewDock.findChild<QWidget*>("SettingsPage");
         auto* slider=settingsPage?settingsPage->findChild<QSlider*>():nullptr;
         if(!settingsPage||!settingsPage->isVisible()||!slider)return previewResult(11);
+        if(!settingsPage->findChild<QLineEdit*>("TwitchClientId")||!settingsPage->findChild<QPushButton*>("TwitchSetupGuide")||!settingsPage->findChild<QPushButton*>("YouTubeSetupGuide"))return previewResult(35);
+        auto* googleSecret=settingsPage->findChild<QLineEdit*>("YouTubeClientSecret");if(!googleSecret||googleSecret->echoMode()!=QLineEdit::Password)return previewResult(36);
         if(!previewDock.grab().save(output+"/settings-"+language+".png"))return previewResult(12);
         slider->setValue(140);app.processEvents();
         if(messages->document()->defaultFont().pixelSize()!=16||previewDock.styleSheet()!=interfaceStyle)return previewResult(13);
