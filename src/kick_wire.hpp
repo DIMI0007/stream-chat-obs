@@ -5,7 +5,7 @@
 #include <QTextBoundaryFinder>
 
 namespace sc::kick_wire {
-inline bool validChannel(const QString& slug){return QRegularExpression("^[a-zA-Z0-9_-]{1,100}$").match(slug).hasMatch();}
+inline bool validChannel(const QString& slug){return QRegularExpression("\\A[a-zA-Z0-9_-]{1,100}\\z").match(slug).hasMatch();}
 inline bool validMessage(const QString& text){
     if(text.trimmed().isEmpty()||text.toUtf8().size()>2048)return false;
     QTextBoundaryFinder finder(QTextBoundaryFinder::Grapheme,text);int count=0;

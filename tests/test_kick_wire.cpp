@@ -8,7 +8,7 @@ int main(int argc,char** argv){
     QCoreApplication app(argc,argv);
     using namespace sc::kick_wire;
     require(validChannel("otmopozok1101")&&validChannel("some_channel-2"),"Valid channel rejected");
-    for(const auto& bad:{QString(),QString("../other"),QString("https://kick.com/name"),QString("a?b=1"),QString("a\nb"),QString(101,'a')})
+    for(const auto& bad:{QString(),QString("../other"),QString("https://kick.com/name"),QString("a?b=1"),QString("a\nb"),QString("a\n"),QString(101,'a')})
         require(!validChannel(bad),"Unsafe channel accepted");
     require(!validMessage(" \n\t")&&validMessage(QString(500,'a'))&&!validMessage(QString(501,'a')),"Message character limit failed");
     const QString cluster=QString::fromUtf8("e\xcc\x81");

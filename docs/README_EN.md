@@ -19,6 +19,8 @@
 
 ## How the plugins work together
 
+The **0.4.0 test branch** adds optional Kick chat. Enable it in Settings to show its card and green K marker. Reading only needs a channel name; sending requires signing in through your personal Kick developer application. Setup instructions are available inside Settings. Account validation is still in progress.
+
 Stream Chat works on its own. Stream Stats can read Chat's local CPU, tracked data and traffic counters when installed. Stream Notify may use Chat's saved Twitch and YouTube sign-ins to check live status; it does not change Chat's account data.
 
 ## Install

@@ -35,7 +35,7 @@ Q_SIGNALS:
 private:
     using Reply=std::function<void(int,const QJsonObject&)>;
     void request(const QUrl& url,const QByteArray& method,const QByteArray& body,bool auth,Reply callback);
-    void stop();void start();void resolve();void openSocket();void retry();void status(const QString& text);
+    void stop();void start();void resolve();void openSocket();void retry();void setStatus(const QString& text);
     bool saveTokens(const QJsonObject& tokens);void refreshToken();void validateAccount(bool allowRefresh=true);
     void receive(const QString& text);void sendFrame(const QJsonObject& frame);
     bool active()const{return enabled_&&visible_;}
