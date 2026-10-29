@@ -425,14 +425,14 @@ private:
     void openSettings(){
         if(pages_->count()>1){pages_->setCurrentIndex(1);return;}
         auto* page=new QWidget(this);page->setObjectName("SettingsPage");pages_->addWidget(page);pages_->setCurrentWidget(page);
-        page->setStyleSheet("QWidget#SettingsPage{background:#080f18;color:#dfe8ff;} QWidget#LanguageCard{background:#0b131e;border:1px solid #263244;border-radius:8px;} QLabel{color:#dfe8ff;font-weight:700;} QPushButton{color:#dfe8ff;background:#172236;border:1px solid #354863;border-radius:7px;padding:5px 12px;} QPushButton#ActiveNav{background:#18234e;border-color:#7663ff;color:#ffffff;font-weight:700;}");
+        page->setStyleSheet("QWidget#SettingsPage{background:#080f18;color:#dfe8ff;} QWidget#LanguageCard,QWidget#TwitchPersonalSettings,QWidget#YouTubePersonalSettings{background:#0d1724;border:1px solid #2b3d54;border-radius:9px;} QLabel{color:#dfe8ff;font-weight:700;} QPushButton{color:#dfe8ff;background:#172236;border:1px solid #354863;border-radius:7px;padding:5px 8px;} QPushButton#ActiveNav{background:#18234e;border-color:#7663ff;color:#ffffff;font-weight:700;} QPushButton#AccountPrimary{background:#123b34;border-color:#139e78;color:#d8fff3;font-weight:700;} QPushButton#AccountGuide{background:#101c2b;color:#9fc8e0;}");
         auto* outer=new QVBoxLayout(page);outer->setContentsMargins(8,8,8,8);outer->setSpacing(8);
         auto* head=new QHBoxLayout;auto* back=new QPushButton(english_?"← Back":"← Назад");head->addWidget(back);auto* title=new QLabel(english_?"Settings":"Настройки");title->setObjectName("Title");head->addWidget(title,1);outer->addLayout(head);
         auto* settingsScroll=new QScrollArea;settingsScroll->setWidgetResizable(true);settingsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         settingsScroll->setStyleSheet("QScrollArea{border:0;background:#080f18;} QCheckBox{color:#dfe8ff;background:transparent;} QLineEdit{color:#dfe8ff;background:#0c1420;border:1px solid #344865;border-radius:5px;padding:4px;}");
         settingsScroll->viewport()->setStyleSheet("background:#080f18;");
         auto* settingsContent=new QWidget;settingsContent->setObjectName("SettingsContent");settingsContent->setStyleSheet("QWidget#SettingsContent{background:#080f18;}");settingsScroll->setWidget(settingsContent);outer->addWidget(settingsScroll,1);
-        outer=new QVBoxLayout(settingsContent);outer->setContentsMargins(0,0,0,0);outer->setSpacing(8);
+        outer=new QVBoxLayout(settingsContent);outer->setContentsMargins(0,0,0,0);outer->setSpacing(12);
         connect(back,&QPushButton::clicked,page,[this,page]{pages_->setCurrentIndex(0);pages_->removeWidget(page);page->deleteLater();});
         auto* card=new QWidget(page);card->setObjectName("LanguageCard");outer->addWidget(card);
         auto* layout=new QVBoxLayout(card);layout->setContentsMargins(8,6,8,8);layout->setSpacing(4);
@@ -477,7 +477,7 @@ private:
             textScale_=value;applyChatTextSize();redrawMessages();updatePreview();
             QSettings saved(configPath("ui.ini"),QSettings::IniFormat);saved.setValue("textScale",textScale_);saved.sync();
         });
-        auto* filters=new QWidget;filters->setObjectName("LanguageCard");auto* filterLayout=new QVBoxLayout(filters);
+        auto* filters=new QWidget;filters->setObjectName("LanguageCard");auto* filterLayout=new QVBoxLayout(filters);filterLayout->setContentsMargins(10,10,10,10);filterLayout->setSpacing(7);
         auto* highlight=new QCheckBox(english_?"Highlight mentions":"Выделять упоминания");highlight->setChecked(highlightMentions_);filterLayout->addWidget(highlight);
         auto* namesLabel=new QLabel(english_?"Your names, separated by commas":"Ваши имена через запятую");namesLabel->setWordWrap(true);filterLayout->addWidget(namesLabel);
         auto* names=new QLineEdit(mentionNames_);names->setMaxLength(500);names->setPlaceholderText(english_?"Twitch login is detected automatically":"Имя Twitch определяется автоматически");filterLayout->addWidget(names);
@@ -497,18 +497,19 @@ private:
         connect(names,&QLineEdit::editingFinished,page,saveFilters);connect(bots,&QLineEdit::editingFinished,page,saveFilters);
         auto addPersonalAccount=[this,page,outer,choices](bool youtube){
             auto* group=new QWidget;group->setObjectName(youtube?"YouTubePersonalSettings":"TwitchPersonalSettings");
-            group->setStyleSheet("QWidget#YouTubePersonalSettings,QWidget#TwitchPersonalSettings{background:#0b131e;border:1px solid #263244;border-radius:8px;}");outer->addWidget(group);
-            auto* box=new QVBoxLayout(group);box->setContentsMargins(8,8,8,8);box->setSpacing(6);
+            outer->addWidget(group);
+            auto* box=new QVBoxLayout(group);box->setContentsMargins(11,10,11,11);box->setSpacing(8);
             box->addWidget(sectionTitle(youtube?"YouTube":"Twitch"));
             auto* hint=new QLabel;hint->setWordWrap(true);hint->setStyleSheet("font-weight:400;color:#8ea1c0;");box->addWidget(hint);
             box->addWidget(new QLabel("Client ID"));auto* id=new QLineEdit(youtube?youtube_.clientId():twitch_.clientId());id->setMaxLength(240);id->setObjectName(youtube?"YouTubeClientId":"TwitchClientId");box->addWidget(id);
             QLineEdit* secret=nullptr;
             if(youtube){box->addWidget(new QLabel("Client Secret"));secret=new QLineEdit(youtube_.clientSecret());secret->setObjectName("YouTubeClientSecret");secret->setEchoMode(QLineEdit::Password);secret->setMaxLength(500);box->addWidget(secret);}
-            auto* save=new QPushButton;box->addWidget(save);auto* login=new QPushButton;box->addWidget(login);auto* instructions=new QPushButton;instructions->setObjectName(youtube?"YouTubeSetupGuide":"TwitchSetupGuide");box->addWidget(instructions);
+            auto* actions=new QHBoxLayout;actions->setSpacing(6);auto* save=new QPushButton;auto* login=new QPushButton;login->setObjectName("AccountPrimary");actions->addWidget(save,1);actions->addWidget(login,1);box->addLayout(actions);
+            auto* instructions=new QPushButton;instructions->setObjectName(youtube?"YouTubeSetupGuide":"TwitchSetupGuide");box->addWidget(instructions);
             auto* status=new QLabel;status->setWordWrap(true);status->setStyleSheet("font-weight:400;color:#8ea1c0;");box->addWidget(status);
             auto update=[this,youtube,hint,save,login,instructions,status]{
                 hint->setText(youtube?(english_?"Create a personal Google desktop application, then paste its keys here. They are encrypted on this PC.":"Создайте личное приложение Google для компьютера и вставьте ключи сюда. Они сохраняются зашифрованными на этом ПК."):(english_?"Create a personal Twitch application with client type Public. Only Client ID is needed; no secret.":"Создайте личное приложение Twitch с типом Public. Нужен только Client ID, без секрета."));
-                save->setText(english_?"Save application":"Сохранить приложение");login->setText(english_?"Sign in":"Войти в аккаунт");instructions->setText(english_?"Connection guide on GitHub":"Инструкция подключения в GitHub");
+                save->setText(english_?"Save":"Сохранить");login->setText(english_?"Sign in":"Войти");instructions->setText(english_?"Connection guide on GitHub":"Инструкция подключения в GitHub");
                 const auto raw=youtube?youtube_.status():twitch_.status();status->setText(english_?englishStatus(compactStatus(raw,youtube?"YouTube":"Twitch")):raw);
             };
             update();for(auto* choice:*choices)connect(choice,&QPushButton::clicked,page,update);
@@ -519,9 +520,9 @@ private:
         };
         addPersonalAccount(false);addPersonalAccount(true);
         auto* kickCard=new QWidget;kickCard->setObjectName("LanguageCard");outer->addWidget(kickCard);
-        auto* kickLayout=new QVBoxLayout(kickCard);kickLayout->setContentsMargins(8,8,8,8);kickLayout->setSpacing(6);
+        auto* kickLayout=new QVBoxLayout(kickCard);kickLayout->setContentsMargins(11,10,11,11);kickLayout->setSpacing(8);
         auto* enableKick=new QCheckBox;enableKick->setObjectName("EnableKick");enableKick->setChecked(kickEnabled_);kickLayout->addWidget(enableKick);
-        auto* account=new QWidget;account->setObjectName("KickAccountSettings");auto* accountLayout=new QVBoxLayout(account);accountLayout->setContentsMargins(0,0,0,0);accountLayout->setSpacing(6);kickLayout->addWidget(account);account->setVisible(kickEnabled_);
+        auto* account=new QWidget;account->setObjectName("KickAccountSettings");auto* accountLayout=new QVBoxLayout(account);accountLayout->setContentsMargins(0,2,0,0);accountLayout->setSpacing(8);kickLayout->addWidget(account);account->setVisible(kickEnabled_);
         auto addField=[accountLayout](const QString& name,QLineEdit* field){auto* label=new QLabel(name);label->setWordWrap(true);accountLayout->addWidget(label);accountLayout->addWidget(field);return label;};
         auto* channel=new QLineEdit(kick_.channel());channel->setMaxLength(100);channel->setObjectName("KickChannel");auto* channelLabel=addField({},channel);
         auto* clientId=new QLineEdit(kick_.clientId());clientId->setMaxLength(200);clientId->setObjectName("KickClientId");addField("Client ID",clientId);
@@ -529,15 +530,14 @@ private:
         auto* storageHint=new QLabel;storageHint->setObjectName("Hint");storageHint->setWordWrap(true);storageHint->setStyleSheet("font-weight:400;color:#8ea1c0;");accountLayout->addWidget(storageHint);
         auto* callbackLabel=new QLabel;callbackLabel->setWordWrap(true);accountLayout->addWidget(callbackLabel);
         auto* callback=new QLineEdit(sc::KickChat::callback());callback->setReadOnly(true);callback->setObjectName("KickCallback");accountLayout->addWidget(callback);
-        auto* copy=new QPushButton;accountLayout->addWidget(copy);connect(copy,&QPushButton::clicked,page,[]{QGuiApplication::clipboard()->setText(sc::KickChat::callback());});
-        auto* save=new QPushButton;accountLayout->addWidget(save);
-        auto* signIn=new QPushButton;accountLayout->addWidget(signIn);
-        auto* signOut=new QPushButton;accountLayout->addWidget(signOut);
+        auto* copy=new QPushButton;copy->setObjectName("AccountGuide");accountLayout->addWidget(copy);connect(copy,&QPushButton::clicked,page,[]{QGuiApplication::clipboard()->setText(sc::KickChat::callback());});
+        auto* kickActions=new QHBoxLayout;kickActions->setSpacing(6);auto* save=new QPushButton;auto* signIn=new QPushButton;signIn->setObjectName("AccountPrimary");kickActions->addWidget(save,1);kickActions->addWidget(signIn,1);accountLayout->addLayout(kickActions);
+        auto* signOut=new QPushButton;signOut->setObjectName("AccountGuide");accountLayout->addWidget(signOut);
         auto* accountStatus=new QLabel;accountStatus->setObjectName("Hint");accountStatus->setWordWrap(true);accountStatus->setStyleSheet("font-weight:400;color:#8ea1c0;");accountLayout->addWidget(accountStatus);
-        auto* guideToggle=new QPushButton;guideToggle->setObjectName("KickGuideToggle");guideToggle->setCheckable(true);accountLayout->addWidget(guideToggle);
+        auto* guideActions=new QHBoxLayout;guideActions->setSpacing(6);auto* guideToggle=new QPushButton;guideToggle->setObjectName("KickGuideToggle");guideToggle->setCheckable(true);guideActions->addWidget(guideToggle,1);
         auto* guide=new QLabel;guide->setObjectName("KickSetupGuide");guide->setWordWrap(true);guide->setTextFormat(Qt::PlainText);guide->setTextInteractionFlags(Qt::TextSelectableByMouse);guide->setStyleSheet("font-weight:400;color:#b8c7df;");guide->hide();accountLayout->addWidget(guide);
-        auto* developerPage=new QPushButton;accountLayout->addWidget(developerPage);
-        auto* githubGuide=new QPushButton;accountLayout->addWidget(githubGuide);githubGuide->setText(english_?"Connection guide on GitHub":"Инструкция подключения в GitHub");
+        auto* developerPage=new QPushButton;developerPage->setObjectName("AccountGuide");guideActions->addWidget(developerPage,1);accountLayout->addLayout(guideActions);
+        auto* githubGuide=new QPushButton;githubGuide->setObjectName("AccountGuide");accountLayout->addWidget(githubGuide);githubGuide->setText(english_?"Connection guide on GitHub":"Инструкция подключения в GitHub");
         connect(githubGuide,&QPushButton::clicked,page,[]{QDesktopServices::openUrl(QUrl("https://github.com/DIMI0007/stream-chat-obs/blob/main/docs/REGISTER_APPS_RU.md#kick"));});
         for(auto* choice:*choices)connect(choice,&QPushButton::clicked,page,[this,githubGuide]{githubGuide->setText(english_?"Connection guide on GitHub":"Инструкция подключения в GitHub");});
         connect(developerPage,&QPushButton::clicked,page,[]{QDesktopServices::openUrl(QUrl("https://kick.com/settings/developer"));});
@@ -547,9 +547,9 @@ private:
             channelLabel->setText(english_?"Channel name (without a link)":"Имя канала (без ссылки)");channel->setPlaceholderText("otmopozok1101");
             storageHint->setText(english_?"Channel name is enough to read chat. Sign in to send. Keys and tokens are encrypted for your Windows account.":"Для чтения достаточно имени канала. Для отправки нужен вход. Ключи и вход сохраняются в зашифрованном виде для вашей учётной записи Windows.");
             callbackLabel->setText(english_?"Redirect URL — copy exactly":"Redirect URL — скопируйте без изменений");copy->setText(english_?"Copy Redirect URL":"Скопировать Redirect URL");
-            save->setText(english_?"Save and connect chat":"Сохранить и подключить чат");signIn->setText(english_?"Sign in to Kick":"Войти в Kick");signOut->setText(english_?"Sign out on this PC":"Выйти на этом ПК");
+            save->setText(english_?"Save chat":"Сохранить чат");signIn->setText(english_?"Sign in":"Войти");signOut->setText(english_?"Sign out on this PC":"Выйти на этом ПК");
             signIn->setEnabled(!kick_.busy());signOut->setVisible(kick_.signedIn());accountStatus->setText(kick_.status(english_));
-            guideToggle->setText(english_?"How to connect Kick":"Как подключить Kick");developerPage->setText(english_?"Open Kick developer settings":"Открыть приложения Kick");
+            guideToggle->setText(english_?"Setup steps":"Как подключить");developerPage->setText(english_?"Kick applications":"Приложения Kick");
             guide->setText(english_?
                 "1. Open Kick developer settings and choose Create application. Enable two-factor authentication if Kick asks.\n\n2. Use a name without spaces, such as StreamChatOBSPersonal. Add a short description.\n\n3. Paste the Redirect URL shown above. Leave webhooks disabled.\n\n4. Select Read channel information (channel:read) and Write to chat (chat:write). Kick also requires Read user information (user:read), including email. Leave other permissions off.\n\n5. Create the application after reviewing Kick's developer terms. Copy Client ID and Client Secret into these fields. The secret is not your stream key.\n\n6. Enter your channel name, save, and choose Sign in to Kick. Confirm access on Kick in your browser.\n\nReading uses Kick's website chat connection, which may change. Sending uses the official Kick API. Disabling Kick stops its connections and keeps your saved account.":
                 "1. Откройте приложения Kick и нажмите «Создать приложение». Включите двухфакторную защиту, если Kick попросит.\n\n2. Название — без пробелов, например StreamChatOBSPersonal. Добавьте короткое описание.\n\n3. Вставьте Redirect URL из поля выше. Webhooks оставьте выключенными.\n\n4. Выберите чтение канала (channel:read) и отправку в чат (chat:write). Kick также требует чтение профиля (user:read), включая email. Остальные права не нужны.\n\n5. Ознакомьтесь с условиями разработчика Kick и создайте приложение. Скопируйте Client ID и Client Secret в эти поля. Secret — это не ключ трансляции.\n\n6. Введите имя своего канала, сохраните и нажмите «Войти в Kick». Подтвердите доступ в браузере на сайте Kick.\n\nЧтение использует соединение чата сайта Kick, которое может измениться. Отправка работает через официальный API Kick. Выключение Kick останавливает подключения и сохраняет аккаунт.");
